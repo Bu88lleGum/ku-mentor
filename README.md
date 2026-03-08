@@ -22,53 +22,61 @@ Follow these steps to synchronize the environment and launch the application.
 ### 1. Repository Initialization
 Clone the repository and enter the project directory:
 ```bash
-git clone [https://github.com/Bu88lleGum/ku-mentor.git](https://github.com/Bu88lleGum/ku-mentor.git)
+git clone https://github.com/Bu88lleGum/ku-mentor.git
 cd ku-mentor
 ```
 
 ### 2. Database Orchestration (Docker)
 The system requires a PostgreSQL instance with the pgvector extension. Ensure Docker Desktop is running, then execute:
 
-Bash
+```bash
 docker-compose up -d
+```
 The database will be initialized and exposed on port 5433.
 
 ### 3. Backend Setup & API Launch
 Navigate to the backend directory:
 
-Bash
+```bash
 cd backend
+```
 Create and activate a Python virtual environment:
 
-Bash
+```bash
 python -m venv venv
 .\venv\Scripts\activate
+```
 Install required dependencies:
 
-Bash
+```bash
 pip install -r requirements.txt
+```
 Start the FastAPI development server:
 
-Bash
+```bash
 fastapi dev main.py
+```
 The API documentation will be available at http://127.0.0.1:8000/docs.
 
 ### 4. Frontend Setup
 Open a new terminal session and navigate to the frontend directory:
 
-Bash
+```bash
 cd frontend
+```
 Install Node.js dependencies:
 
-Bash
+```bash
 npm install
+```
 Launch the Next.js development server:
 
-Bash
+```bash
 npm run dev
+```
 The application interface will be accessible at http://localhost:3000.
 
-### 📂 Project Structure
+## 📂 Project Structure
 /backend — API endpoints, embedding generation logic, and database schemas.
 
 /frontend — User interface components and client-side integration.
