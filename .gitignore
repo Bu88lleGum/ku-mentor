@@ -1,0 +1,40 @@
+# --- PYTHON & BACKEND ---
+# Виртуальное окружение (у каждого оно свое, там мегабайты лишних файлов)
+backend/venv/
+backend/env/
+backend/.venv/
+
+# Кэш Python (временные файлы, которые создаются при запуске кода)
+**/__pycache__/
+**/*.pyc
+**/*.pyo
+**/*.pyd
+
+# Настройки VS Code 
+.vscode/
+
+# --- NODE.JS & FRONTEND ---
+# Огромная папка с библиотеками 
+frontend/node_modules/
+
+# Результат сборки Next.js (создается заново при каждом запуске)
+frontend/.next/
+frontend/out/
+frontend/build/
+
+# Логи ошибок npm
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# --- DATABASE & DOCKER ---
+# Если ты используешь локальную папку для данных базы (volumes), 
+# её нельзя в Гит, иначе база затрет данные друга.
+pgdata/
+postgres_data/
+
+# --- СЕКРЕТЫ ---
+# Файлы с паролями и ключами доступа (их нельзя светить на GitHub!)
+.env
+.env.local
+backend/.env

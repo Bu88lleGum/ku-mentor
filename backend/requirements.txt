@@ -1,0 +1,6 @@
+fastapi[standard]
+sqlmodel
+pgvector
+fastembed
+psycopg[binary]
+numpy

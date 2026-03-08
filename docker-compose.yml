@@ -1,0 +1,14 @@
+services:
+  db:
+    image: ankane/pgvector:latest # Используем образ с поддержкой векторов
+    ports:
+      - "5433:5432"
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: qwerty
+      POSTGRES_DB: postgres
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+
+volumes:
+  pgdata:
