@@ -1,0 +1,18 @@
+[
+  {
+    "title": "Python для начинающих",
+    "description": "Основы программирования и синтаксиса Python."
+  },
+  {
+    "title": "Мәліметтер базасы",
+    "description": "SQL және реляциялық деректер базасымен жұмыс."
+  },
+  {
+    "title": "AI & Machine Learning",
+    "description": "Introduction to neural networks and vector search."
+  },
+  {
+    "title": "React Frontend",
+    "description": "Создание современных интерфейсов на React и Next.js."
+  }
+]
