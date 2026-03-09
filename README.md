@@ -87,6 +87,12 @@ The application interface will be accessible at http://localhost:3000.
 
 ## 📂 Project Structure
 /backend — API endpoints, embedding generation logic, and database schemas.
+├── ai_engine.py   # Инициализация нейросети (FastEmbed)
+├── database.py    # Подключение к Docker Postgres и инициализация таблиц
+├── models.py      # Описание структуры данных (Course)
+├── main.py        # API эндпоинты (FastAPI)
+├── seed.py        # Скрипт первичного наполнения базы
+└── courses.json   # Твои данные для синхронизации
 
 /frontend — User interface components and client-side integration.
 
