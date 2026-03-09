@@ -87,13 +87,13 @@ The application interface will be accessible at http://localhost:3000.
 
 ## 📂 Project Structure
 /backend — API endpoints, embedding generation logic, and database schemas.
--**├── ai_engine.py**    # AI Model initialization (FastEmbed)
--**├── database.py**     # Connection logic & DB initialization
--**├── models.py**       # SQLModel schemas (Course, etc.)
--**├── main.py**         # FastAPI endpoints & logic
--**├── seed.py**         # Data seeding & vectorization script
--**├── courses.json**    # Source data for courses
--**└── requirements.txt**
+- **├── ai_engine.py**    # AI Model initialization (FastEmbed)
+- **├── database.py**     # Connection logic & DB initialization
+- **├── models.py**       # SQLModel schemas (Course, etc.)
+- **├── main.py**         # FastAPI endpoints & logic
+- **├── seed.py**         # Data seeding & vectorization script
+- **├── courses.json**    # Source data for courses
+- **└── requirements.txt**
 
 /frontend — User interface components and client-side integration.
 
