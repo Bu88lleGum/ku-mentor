@@ -84,7 +84,7 @@ Launch the Next.js development server:
 npm run dev
 ```
 The application interface will be accessible at http://localhost:3000.
----
+
 ## 📂 Project Structure
 /backend — API endpoints, embedding generation logic, and database schemas.
 -**├── ai_engine.py**    # AI Model initialization (FastEmbed)
@@ -94,7 +94,7 @@ The application interface will be accessible at http://localhost:3000.
 -**├── seed.py**         # Data seeding & vectorization script
 -**├── courses.json**    # Source data for courses
 -**└── requirements.txt**
----
+
 /frontend — User interface components and client-side integration.
 
 docker-compose.yml — Multi-container configuration for the database environment.
