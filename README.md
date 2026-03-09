@@ -52,20 +52,20 @@ python -m venv venv
 ```bash
 pip install -r requirements.txt
 ```
-3.4 Start the FastAPI development server:
-
-```bash
-fastapi dev main.py
-```
-The API documentation will be available at http://127.0.0.1:8000/docs.
-
-3.5 Data Synchronization (Seeding)
+3.4 Data Synchronization (Seeding)
 Before using the search features, populate your local database with initial course data and generate embeddings:
 
 ```bash
 python seed.py
 ```
 This script will read courses.json, generate vectors via FastEmbed, and store them in your Docker-based PostgreSQL.
+
+3.5 Start the FastAPI development server:
+
+```bash
+fastapi dev main.py
+```
+The API documentation will be available at http://127.0.0.1:8000/docs.
 
 ### 4. Frontend Setup
 Open a new terminal session and navigate to the frontend directory:
@@ -84,16 +84,17 @@ Launch the Next.js development server:
 npm run dev
 ```
 The application interface will be accessible at http://localhost:3000.
-
+---
 ## 📂 Project Structure
 /backend — API endpoints, embedding generation logic, and database schemas.
-├── ai_engine.py   # Инициализация нейросети (FastEmbed)
-├── database.py    # Подключение к Docker Postgres и инициализация таблиц
-├── models.py      # Описание структуры данных (Course)
-├── main.py        # API эндпоинты (FastAPI)
-├── seed.py        # Скрипт первичного наполнения базы
-└── courses.json   # Твои данные для синхронизации
-
+-**├── ai_engine.py**    # AI Model initialization (FastEmbed)
+-**├── database.py**     # Connection logic & DB initialization
+-**├── models.py**       # SQLModel schemas (Course, etc.)
+-**├── main.py**         # FastAPI endpoints & logic
+-**├── seed.py**         # Data seeding & vectorization script
+-**├── courses.json**    # Source data for courses
+-**└── requirements.txt**
+---
 /frontend — User interface components and client-side integration.
 
 docker-compose.yml — Multi-container configuration for the database environment.
