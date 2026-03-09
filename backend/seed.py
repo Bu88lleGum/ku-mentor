@@ -1,21 +1,22 @@
 import json
-from sqlmodel import Session, create_engine, select
-from init_db import Course, model, engine # Импортируем твои настройки
+from sqlmodel import Session, select
+from database import engine, init_db
+from models import Course
+from ai_engine import model
 
 def seed_courses():
-    # 1. Загружаем данные из файла
+    # Сначала убедимся, что таблицы созданы
+    init_db()
+
     with open("courses.json", "r", encoding="utf-8") as f:
         courses_data = json.load(f)
 
     with Session(engine) as session:
         for item in courses_data:
-            # Проверяем, нет ли уже такого курса в базе (по названию)
-            statement = select(Course).where(Course.title == item["title"])
-            existing = session.exec(statement).first()
+            existing = session.exec(select(Course).where(Course.title == item["title"])).first()
             
             if not existing:
-                print(f"⏳ Генерируем вектор для: {item['title']}...")
-                # Генерируем вектор через FastEmbed
+                print(f"⏳ Векторизация: {item['title']}...")
                 embedding = list(model.embed([item["description"]]))[0]
                 
                 new_course = Course(
@@ -24,12 +25,11 @@ def seed_courses():
                     embedding=embedding.tolist()
                 )
                 session.add(new_course)
-                print(f"✅ Добавлен: {item['title']}")
             else:
-                print(f"⏩ Пропуск (уже есть): {item['title']}")
+                print(f"⏩ Пропуск: {item['title']}")
         
         session.commit()
-        print("\n🚀 База данных синхронизирована!")
+        print("🚀 Синхронизация завершена!")
 
 if __name__ == "__main__":
     seed_courses()

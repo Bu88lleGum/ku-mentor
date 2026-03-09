@@ -1,3 +1,5 @@
+# это тестовый файл запускать не обязательно
+
 from sqlmodel import Session, create_engine, select
 from pgvector.sqlalchemy import Vector
 from fastembed import TextEmbedding
