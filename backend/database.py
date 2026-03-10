@@ -6,6 +6,7 @@ engine = create_engine(DATABASE_URL)
 
 def init_db():
     with engine.connect() as conn:
+        # Это расширение должно быть в базе ДО запуска миграций Alembic
         conn.execute(text("CREATE EXTENSION IF NOT EXISTS vector"))
         conn.commit()
-    SQLModel.metadata.create_all(engine)
+    # SQLModel.metadata.create_all(engine)  <-- Эту строку можно закомментировать/удалить

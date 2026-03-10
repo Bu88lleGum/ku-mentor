@@ -4,3 +4,4 @@ pgvector
 fastembed
 psycopg[binary]
 numpy
+alembic
