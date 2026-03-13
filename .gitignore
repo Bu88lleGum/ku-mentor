@@ -38,3 +38,14 @@ postgres_data/
 .env
 .env.local
 backend/.env
+# Системные файлы
+.DS_Store
+Thumbs.db
+
+# Настройки других IDE (на случай, если кто-то не в VS Code)
+.idea/
+*.swp
+
+# Файлы окружения в корне (на всякий случай)
+.env*
+!.gitignore

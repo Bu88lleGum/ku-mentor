@@ -1,0 +1,20 @@
+[
+  {
+    "title": "FastAPI: Современный бэкенд на Python",
+    "description": "Курс по созданию высокопроизводительных API с использованием асинхронности и Pydantic.",
+    "provider": "Университет ИТ",
+    "categories": ["Backend", "Python"]
+  },
+  {
+    "title": "Машинное обучение для начинающих",
+    "description": "Основы ML, работа с библиотеками Scikit-learn и введение в нейронные сети.",
+    "provider": "AI School",
+    "categories": ["Data Science", "AI"]
+  },
+  {
+    "title": "Проектирование баз данных",
+    "description": "Нормализация, индексы и сложные SQL запросы в PostgreSQL.",
+    "provider": "Database Center",
+    "categories": ["Databases", "PostgreSQL"]
+  }
+]

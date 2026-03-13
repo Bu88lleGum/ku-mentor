@@ -1,9 +1,9 @@
 from fastapi import FastAPI, Query, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from sqlmodel import Session, select
-from database import engine
+from backend.app.core.database import engine
 from models import Course
-from ai_engine import model
+from backend.app.services.ai_engine import model
 import logging
 
 logging.basicConfig(level=logging.INFO)

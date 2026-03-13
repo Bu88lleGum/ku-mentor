@@ -1,5 +1,6 @@
 import sys
 from os.path import abspath, dirname
+import pgvector.sqlalchemy # Чтобы Alembic знал, как рендерить тип Vector
 
 # 1. Добавляем путь к проекту, чтобы Alembic видел ваши файлы
 sys.path.insert(0, dirname(dirname(abspath(__file__))))
@@ -10,8 +11,8 @@ from alembic import context
 
 # 2. Импорт вашей конфигурации
 from sqlmodel import SQLModel
-from database import DATABASE_URL  # Импортируем ваш URL
-from models import Course         # Убедитесь, что все модели импортированы здесь
+from app.core.database import DATABASE_URL  # Импортируем ваш URL
+from app.models import metadata         # Убедитесь, что все модели импортированы здесь
 
 config = context.config
 
@@ -21,7 +22,7 @@ config.set_main_option("sqlalchemy.url", DATABASE_URL)
 if config.config_file_name is not None:
     fileConfig(config.config_file_name)
 
-target_metadata = SQLModel.metadata
+target_metadata = metadata
 
 def run_migrations_offline() -> None:
     url = config.get_main_option("sqlalchemy.url")
