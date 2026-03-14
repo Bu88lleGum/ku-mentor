@@ -1,3 +1,29 @@
+## 🔑 Инструкция для Фронтенда
+
+### 1. Авторизация (Login)
+Для доступа к защищенным эндпоинтам (например, рекомендации) нужно получить токен.
+* **URL:** `POST /auth/login`
+* **Формат данных:** `Content-Type: application/x-www-form-urlencoded`
+* **Поля:** `username` (твой email) и `password`.
+* **Что придет в ответ:**
+```json
+{
+  "access_token": "eyJhbGciOiJIUzI1Ni...",
+  "token_type": "bearer"
+}
+```
+
+### 2. Как делать запросы к защищенным API
+При каждом запросе к /recommend/ добавляй токен в заголовок Authorization:
+Authorization: Bearer <твой_access_token>
+
+### 3. Эндпоинты
+* **POST /users/register** — регистрация нового студента.
+
+* **GET /recommend/** — поиск курсов. Параметр user_query (мин. 3 символа).
+
+* **GET /health** — проверка статуса сервера.
+
 # KU Mentor — AI-Driven Academic Recommendation System
 
 **KU Mentor** is an intelligent assistant designed for university students. It utilizes semantic vector search to match student interests with relevant courses, extracurricular activities, and career paths, moving beyond simple keyword matching to understand user intent.
@@ -60,7 +86,7 @@ pip install -r requirements.txt
 4) Start the FastAPI development server:
 
 ```bash
-fastapi dev main.py
+uvicorn app.main:app --reload
 ```
 The API documentation will be available at http://127.0.0.1:8000/docs.
 
@@ -151,5 +177,5 @@ docker-compose.yml — Multi-container configuration for the database environmen
 
 ## 👥 Contributors:
 
-- **Konstantin Permin** (@Bu88lleGum) — Backend & AI Integration, Frontend, Database, ORM, Deployment
-- **Venom** (@tea-ervi) — ?
+- **Konstantin Permin** (@Bu88lleGum) — Backend & AI Integration, Database, ORM, Deployment
+- **Venom** (@tea-ervi) — Frontend

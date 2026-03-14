@@ -1,12 +1,7 @@
-from fastapi import FastAPI, Query, HTTPException
+from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from sqlmodel import Session, select
-from backend.app.core.database import engine
-from models import Course
-from backend.app.services.ai_engine import model
-import logging
+from app.api.endpoints import recommendations_router, users_router, auth_router
 
-logging.basicConfig(level=logging.INFO)
 app = FastAPI(title="KU Mentor API")
 
 app.add_middleware(
@@ -17,29 +12,11 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-@app.get("/recommend")
-def get_recommendation(user_query: str = Query(..., min_length=3)):
-    try:
-        # Превращаем запрос студента в вектор
-        query_vector = list(model.embed([user_query]))[0]
-
-        with Session(engine) as session:
-            # Ищем топ-3 курса по косинусному сходству
-            statement = (
-                select(Course)
-                .order_by(Course.embedding.cosine_distance(query_vector))
-                .limit(3)
-            )
-            results = session.exec(statement).all()
-
-        return [
-            {"id": c.id, "title": c.title, "description": c.description} 
-            for c in results
-        ]
-    except Exception as e:
-        logging.error(f"Error: {e}")
-        raise HTTPException(status_code=500, detail="Database search error")
+# Подключаем модули (роутеры)
+app.include_router(recommendations_router, prefix="/recommend", tags=["Recommendations"])
+app.include_router(users_router, prefix="/users", tags=["Users"])
+app.include_router(auth_router, prefix="/auth", tags=["Auth"])
 
 @app.get("/health")
 def health_check():
-    return {"status": "online", "model": "paraphrase-multilingual"}
+    return {"status": "online", "engine": "FastEmbed - Multilingual"}
