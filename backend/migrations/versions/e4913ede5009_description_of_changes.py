@@ -1,8 +1,8 @@
-"""Initial
+"""description_of_changes
 
-Revision ID: 54f802a2a16d
+Revision ID: e4913ede5009
 Revises: 
-Create Date: 2026-03-13 15:53:31.616366
+Create Date: 2026-03-14 13:11:48.860015
 
 """
 from typing import Sequence, Union
@@ -14,7 +14,7 @@ import pgvector.sqlalchemy  ## ДОБАВИТЬ ЭТО
 from sqlalchemy.dialects import postgresql
 
 # revision identifiers, used by Alembic.
-revision: str = '54f802a2a16d'
+revision: str = 'e4913ede5009'
 down_revision: Union[str, Sequence[str], None] = None
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
@@ -60,6 +60,7 @@ def upgrade() -> None:
     sa.Column('provider_id', sa.Integer(), nullable=False),
     sa.Column('title', sqlmodel.sql.sqltypes.AutoString(), nullable=False),
     sa.Column('description', sqlmodel.sql.sqltypes.AutoString(), nullable=False),
+    sa.Column('sourceUrl', sqlmodel.sql.sqltypes.AutoString(), nullable=True),
     sa.Column('embedding', pgvector.sqlalchemy.vector.VECTOR(dim=384), nullable=True),
     sa.ForeignKeyConstraint(['provider_id'], ['provider.id'], ),
     sa.PrimaryKeyConstraint('id')

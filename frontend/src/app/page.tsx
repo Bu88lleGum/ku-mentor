@@ -1,7 +1,11 @@
 'use client';
 
-import { useState } from 'react';
+
+
+import { useState, useEffect } from 'react';
 import Link from "next/link"
+import LogoutButton from "@/src/app/components/logoutButton";
+
 
 // Типизация ответа от твоего FastAPI
 interface CourseRecommendation {
@@ -10,92 +14,178 @@ interface CourseRecommendation {
   description: string;
 }
 
+
+
 export default function Home() {
-  const [query, setQuery] = useState('');
-  const [results, setResults] = useState<CourseRecommendation[]>([]);
-  const [loading, setLoading] = useState(false);
+  const [isAuth, setIsAuth] = useState(false); //Авторизован
+  const [query, setQuery] = useState(''); //Запрос
+  const [results, setResults] = useState<CourseRecommendation[]>([]); //Результаты
+  const [loading, setLoading] = useState(false); //Загрузка
 
   const handleSearch = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!query.trim()) return;
-
+    
     setLoading(true);
+    
     try {
-      // Запрос к твоему серверу (обязательно проверь, что он запущен на 8000 порту)
-      const response = await fetch(`http://localhost:8000/recommend?user_query=${encodeURIComponent(query)}`);
+      const token = localStorage.getItem("token");
+
+      const response = await fetch(`http://127.0.0.1:8000/recommend/?user_query=${encodeURIComponent(query)}`, {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { 'Authorization': `Bearer ${token}` } : {})
+        }
+        });
+
       const data = await response.json();
-      setResults(data);
+
+      console.log("ОТВЕТ БЭКЕНДА:", data);
+
+      //-----------Проверка данных-----------
+      if (Array.isArray(data)) {
+        setResults(data);
+      } else if (data.recommendations && Array.isArray(data.recommendations)) {
+        setResults(data.recommendations); // Попробуйте это имя, если оно в консоли
+      } else if (data.courses && Array.isArray(data.courses)) {
+        setResults(data.courses);
+      } else {
+        // Если ничего не подошло, попробуем взять первый найденный массив внутри объекта
+        const autoFoundArray = Object.values(data).find(val => Array.isArray(val));
+        setResults(Array.isArray(autoFoundArray) ? autoFoundArray : []);
+      }
+      // -------------------------------
+
     } catch (error) {
-      console.error("Ошибка соединения с бэкендом:", error);
+      console.error("Ошибка соединения:", error);
+      setResults([]);
     } finally {
       setLoading(false);
     }
   };
 
+
+  // Проверка авторизации
+  useEffect(() => {
+    const token = localStorage.getItem("token");
+    if (token) {
+      setIsAuth(true);
+    }
+  }, []);
+
+  
   return (
     <div className="min-h-screen bg-slate-50 text-slate-900 font-sans">
+      {/* Хэдер на весь экран с синим фоном */}
+      <header className="bg-indigo-700 pt-16 pb-20">
+    
+        {/* Кнопки в верхнем правом углу */}
+        <div className="absolute top-6 right-6 flex gap-4">
+        {isAuth ? (
+          <>
+            {/* Если авторизован — показываем кнопку Профиля */}
+            <LogoutButton></LogoutButton>
 
-<Link 
-  href="/login" 
-  className="mx-12 px-5 py-2 border border-gray-200 text-gray-600 font-medium rounded-xl hover:border-blue-500 hover:text-blue-600 transition-all duration-200"
->
-  Войти
-</Link>
-
-      <div className="max-w-4xl mx-auto px-4 py-16">
-        <header className="text-center mb-12">
-          <h1 className="text-5xl font-extrabold text-indigo-700 mb-4 tracking-tight">
-            KU Mentor
-          </h1>
-          <p className="text-lg text-slate-600">
-            Твой персональный ИИ-секретарь: найди курс по смыслу, а не по буквам.
-          </p>
-        </header>
-
-        {/* Форма поиска */}
-        <form onSubmit={handleSearch} className="relative group mb-16">
-          <input
-            type="text"
-            className="w-full p-6 pr-32 text-lg rounded-2xl border-none shadow-xl focus:ring-4 focus:ring-indigo-300 transition-all outline-none bg-white text-black"
-            placeholder="Опиши свои интересы..."
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-          />
-          <button 
-            type="submit"
-            disabled={loading}
-            className="absolute right-3 top-3 bottom-3 px-8 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-xl transition-all disabled:opacity-50"
+            <Link 
+              href="/profile" 
+              className="bg-white text-indigo-700 px-5 py-2 rounded-xl font-bold shadow-lg hover:bg-indigo-50 transition-all"
+            >Мой профиль</Link>
+          </>
+        
+        ) : (
+          /* Если НЕ авторизован — показываем кнопку Войти */
+          <Link 
+            href="/login" 
+            className="bg-indigo-600 text-white px-5 py-2 rounded-xl font-bold shadow-lg hover:bg-indigo-700 transition-all"
           >
-            {loading ? '...' : 'Найти'}
-          </button>
-        </form>
+            Войти
+          </Link>
+        )}
+        </div>
 
-        {/* Результаты */}
-        <div className="space-y-6">
-          {Array.isArray(results) && results.map((course) => (
-            <div 
-              key={course.id} 
-              className="bg-white p-8 rounded-3xl border border-slate-100 shadow-sm hover:shadow-xl hover:-translate-y-1 transition-all duration-300"
-            >
-              <div className="flex justify-between items-start mb-4">
-                <h3 className="text-2xl font-bold text-slate-800">{course.title}</h3>
-                <span className="bg-indigo-100 text-indigo-700 text-xs font-bold px-3 py-1 rounded-full uppercase">
-                  Курс
-                </span>
-              </div>
-              <p className="text-slate-600 leading-relaxed text-lg">
-                {course.description}
+        {/* Центральная часть хэдера */}
+        <div className="text-center">
+          <h1 className="text-6xl font-extrabold text-white my-24">KU Mentor</h1>
+          <p className="text-xl text-indigo-100 max-w-2xl mx-auto">Твой персональный ИИ-секретарь: найди курс по смыслу, а не по буквам.</p>
+        </div>
+      </header>
+
+      {/* Результаты */}
+      <main className="max-w-4xl mx-auto px-4">
+        <div className="bg-white p-6 rounded-2xl shadow-xl border border-gray-100 -mt-10 relative z-10">
+    
+          {/* Сообщение для неавторизованных пользователей */}
+          {!isAuth && (
+            <div className="mb-4 p-3 bg-amber-50 border border-amber-100 rounded-xl flex items-center gap-3">
+              <span className="text-amber-600 text-lg">🔒</span>
+              <p className="text-amber-800 text-sm font-medium">Пожалуйста, <Link href="/login" className="underline font-bold hover:text-amber-900">войдите в систему</Link>
+                , чтобы воспользоваться ИИ-поиском курсов.
               </p>
             </div>
-          ))}
+          )}
 
-          {results.length === 0 && !loading && query && (
-            <div className="text-center py-20 bg-white rounded-3xl border-2 border-dashed border-slate-200">
-              <p className="text-slate-400 text-xl font-medium">Ничего не найдено. Попробуй перефразировать запрос!</p>
-            </div>
+          {/* Форма поиска */}
+          <form onSubmit={handleSearch} className="relative">
+            <input type="text"
+              // Блокируем поле, если нет авторизации
+              disabled={!isAuth}
+              className={`w-full p-6 text-lg rounded-2xl shadow-xl transition-all
+                ${!isAuth 
+                  ? "bg-gray-100 cursor-not-allowed text-gray-400 placeholder-gray-400" 
+                  : "bg-white text-black outline-none focus:ring-4 focus:ring-indigo-300 shadow-indigo-100/50"
+              }`}
+              placeholder={isAuth ? "Опиши свои интересы..." : "Поиск доступен только после входа"}
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              />
+    
+            <button 
+              type="submit"
+              // Блокируем кнопку, если нет авторизации или идет загрузка
+              disabled={!isAuth || loading}
+              className={`absolute right-3 top-3 bottom-3 px-8 font-bold rounded-xl transition-all 
+                ${!isAuth 
+                  ? "bg-gray-200 text-gray-400 cursor-not-allowed" 
+                  : "bg-indigo-600 hover:bg-indigo-700 text-white shadow-lg active:scale-95 disabled:opacity-50"
+                }`}
+                >
+              {loading ? '...' : 'Найти'}
+            </button>
+          </form>
+        </div>
+  
+        {/* Результаты */}
+        <div className="max-w-4xl mx-auto px-4 mt-10 pb-20"> {/* Добавили отступы и ширину */}
+          {results && results.length > 0 ? (
+          <div className="relative space-y-6">
+            {results.map((course: any) => (
+              <div 
+                key={course.id || course.title} // Используем title если нет id
+                className="bg-white p-8 rounded-3xl border border-slate-100 shadow-sm hover:shadow-xl transition-all">
+                <div className="flex justify-between items-start mb-4">
+                  <h3 className="text-2xl font-bold text-slate-800">{course.title}</h3>
+                  <span className="bg-indigo-100 text-indigo-700 text-xs font-bold px-3 py-1 rounded-full uppercase">Курс</span>
+                </div>
+                <p className="text-slate-600 leading-relaxed text-lg">
+                  {course.description}
+                </p>
+              </div>
+            ))}
+          </div>
+          ) : (
+            !loading && query && (
+              <div className="text-center py-20 bg-white rounded-3xl border-2 border-dashed border-slate-200">
+               <p className="text-slate-400 text-xl font-medium">Ничего не найдено.</p>
+              </div>
+            )
           )}
         </div>
-      </div>
+      </main>
     </div>
   );
 }
+
+
+
+
