@@ -27,31 +27,43 @@ def seed_all():
                     session.add(db_provider)
                     session.flush()
 
-                # Курс
-                existing_course = session.exec(select(Course).where(Course.title == item["title"])).first()
-                if not existing_course:
-                    print(f"  📚 Векторизация курса: {item['title']}...")
-                    # Используем твой метод create_embedding
-                    vector = ai_service.create_embedding(item["description"])
-                    
-                    new_course = Course(
+                # Ищем курс, чтобы обновить или создать
+                course = session.exec(select(Course).where(Course.title == item["title"])).first()
+                
+                # Генерируем НОВЫЙ усиленный вектор (теперь передаем всё!)
+                print(f"  📚 Векторизация: {item['title']}...")
+                new_vector = ai_service.create_embedding(
+                    title=item["title"], 
+                    description=item["description"], 
+                    categories=item.get("categories", [])
+                )
+
+                if not course:
+                    # Создаем новый, если нет
+                    course = Course(
                         title=item["title"],
                         description=item["description"],
                         provider_id=db_provider.id,
-                        embedding=vector
+                        embedding=new_vector
                     )
-                    # Категории
-                    for c_name in item.get("categories", []):
-                        db_cat = session.exec(select(Category).where(Category.name == c_name)).first()
-                        if not db_cat:
-                            db_cat = Category(name=c_name)
-                            session.add(db_cat)
-                            session.flush()
-                        new_course.categories.append(db_cat)
-                    session.add(new_course)
+                    session.add(course)
+                else:
+                    # ОБНОВЛЯЕМ существующий (чтобы веса наконец применились)
+                    course.embedding = new_vector
+                    course.description = item["description"]
+                
+                # Обновляем категории
+                course.categories = [] # Очищаем старые связи, чтобы не дублировать
+                for c_name in item.get("categories", []):
+                    db_cat = session.exec(select(Category).where(Category.name == c_name)).first()
+                    if not db_cat:
+                        db_cat = Category(name=c_name)
+                        session.add(db_cat)
+                        session.flush()
+                    course.categories.append(db_cat)
+
         except FileNotFoundError:
             print("⚠️ Файл data.json не найден, импорт курсов пропущен.")
-
         # --- 2. ТЕСТОВЫЙ СТУДЕНТ ---
         student_email = "konstantin@example.com"
         if not session.exec(select(User).where(User.email == student_email)).first():
@@ -87,7 +99,9 @@ def seed_all():
                 employer_id=emp_profile.id,
                 title="Python Developer",
                 description=vacancy_text,
-                embedding=ai_service.create_embedding(vacancy_text)
+                # Было: embedding=ai_service.create_embedding(vacancy_text)
+                # Нужно (передаем текст вакансии в title, остальное пустое):
+                embedding=ai_service.create_embedding(title=vacancy_text, description="", categories=[])
             )
             session.add(vacancy)
 

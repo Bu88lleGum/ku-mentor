@@ -18,7 +18,12 @@ def get_recommendations(
     try:
         # Теперь ты точно знаешь, КТО делает запрос (current_user_id)
         print(f"Пользователь {current_user_id} ищет рекомендации {user_query}")
-        query_vector = ai_service.create_embedding(user_query)
+        query_text = f"{user_query}. {user_query}. {user_query}."
+        query_vector = ai_service.create_embedding(
+            title=query_text, 
+            description="", 
+            categories=[]
+        )
 
         statement = (
             select(Course)
