@@ -1,6 +1,8 @@
 from pydantic import BaseModel, EmailStr, Field
 from typing import List
 from app.models.enums import UserRole
+from datetime import datetime
+
 
 # То, что мы ждем от фронтенда при регистрации
 class UserCreate(BaseModel):
@@ -42,5 +44,6 @@ class UserRead(BaseModel):
     email: EmailStr
     # Поле student_profile должно совпадать с именем Relationship в модели User
     student_profile: StudentProfileRead | None = None 
+    created_at: datetime
     class Config:
         from_attributes = True

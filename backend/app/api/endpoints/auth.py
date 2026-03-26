@@ -4,10 +4,8 @@ from app.core.database import get_session
 from app.core.security import verify_password, create_access_token
 from app.crud.user import get_user_by_email
 from fastapi.security import OAuth2PasswordRequestForm # Импортируй это!
+
 router = APIRouter()
-
-
-from fastapi.security import OAuth2PasswordRequestForm # Импортируй это!
 
 @router.post("/login")
 def login(

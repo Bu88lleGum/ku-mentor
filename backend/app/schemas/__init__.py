@@ -2,3 +2,4 @@ from .user import UserCreate, UserRead, ProfileUpdate, EmployerProfileUpdate, St
 from .course import CourseRead, RecommendationResponse, CourseCreate
 from .auth import LoginRequest
 from .skill import SkillCreate, SkillRead
+from .studentcource import StudentCourseCreate, StudentCourseRead, StudentCourseUpdate, CourseStatus
