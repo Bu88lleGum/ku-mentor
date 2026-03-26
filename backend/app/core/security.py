@@ -31,7 +31,7 @@ def create_access_token(data: dict):
 def get_current_user_id(token: str = Depends(oauth2_scheme)) -> int:
     credentials_exception = HTTPException(
         status_code=status.HTTP_401_UNAUTHORIZED,
-        detail="Не удалось подтвердить личность",
+        detail="Токен недействителен или истек",
         headers={"WWW-Authenticate": "Bearer"},
     )
     try:
@@ -41,5 +41,5 @@ def get_current_user_id(token: str = Depends(oauth2_scheme)) -> int:
         if user_id is None:
             raise credentials_exception
         return int(user_id) # Возвращаем ID владельца токена
-    except Exception:
+    except jwt.PyJWTError:
         raise credentials_exception

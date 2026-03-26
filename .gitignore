@@ -9,7 +9,7 @@ backend/.venv/
 **/*.pyc
 **/*.pyo
 **/*.pyd
-
+backend/model_cache/
 # Настройки VS Code 
 .vscode/
 

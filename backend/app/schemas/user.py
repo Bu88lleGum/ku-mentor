@@ -1,17 +1,46 @@
 from pydantic import BaseModel, EmailStr, Field
-from typing import Optional, List
+from typing import List
+from app.models.enums import UserRole
 
 # То, что мы ждем от фронтенда при регистрации
 class UserCreate(BaseModel):
     username: str = Field(..., min_length=3, max_length=50)
     email: EmailStr
     password: str = Field(..., min_length=6)
+    role: UserRole = UserRole.STUDENT
+
+
+# Базовые поля работодателя
+class EmployerProfileUpdate(BaseModel):
+    company_name: str
+    industry: str | None = None
+    region: str | None = None
+
+    class Config:
+        from_attributes = True
+
+class ProfileUpdate(BaseModel):
+    # ge=0 (>=0), le=4.0 (<=4.0)
+    gpa: float | None = Field(None, ge=0, le=4.0) 
+    interests: List[str] | None = None
+    skill_ids: List[int] | None = None
+    
+    class Config:
+        from_attributes = True # Позволяет Pydantic читать данные прямо из SQLModel объектов
+
+class StudentProfileRead(BaseModel):
+    gpa: float | None
+    interests: List[str] | None
+
+    class Config:
+        from_attributes = True
 
 # То, что мы отдаем фронтенду (без пароля!)
 class UserRead(BaseModel):
     id: int
     username: str
-    email: str
-    
+    email: EmailStr
+    # Поле student_profile должно совпадать с именем Relationship в модели User
+    student_profile: StudentProfileRead | None = None 
     class Config:
-        from_attributes = True # Позволяет Pydantic читать данные прямо из SQLModel объектов
+        from_attributes = True

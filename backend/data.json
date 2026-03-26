@@ -16,5 +16,149 @@
     "description": "Нормализация, индексы и сложные SQL запросы в PostgreSQL.",
     "provider": "Database Center",
     "categories": ["Databases", "PostgreSQL"]
+  },
+  {
+    "title": "React: Полное руководство",
+    "description": "Глубокое погружение в создание интерактивных интерфейсов с использованием хуков, Context API и Redux Toolkit.",
+    "provider": "Frontend Academy",
+    "categories": ["Frontend", "JavaScript"]
+  },
+  {
+    "title": "DevOps: Docker и Kubernetes",
+    "description": "Контейнеризация приложений и управление кластерами для обеспечения масштабируемости и отказоустойчивости.",
+    "provider": "Cloud Systems",
+    "categories": ["DevOps", "Infrastructure"]
+  },
+  {
+    "title": "Этичный хакинг и кибербезопасность",
+    "description": "Поиск уязвимостей, тестирование на проникновение и методы защиты корпоративных сетей.",
+    "provider": "Security Lab",
+    "categories": ["Security", "Networking"]
+  },
+  {
+    "title": "UX/UI Дизайн: От идеи до прототипа",
+    "description": "Проектирование пользовательского опыта, работа в Figma и основы типографики и колористики.",
+    "provider": "Design Hub",
+    "categories": ["Design", "UI/UX"]
+  },
+  {
+    "title": "Разработка мобильных приложений на Flutter",
+    "description": "Создание кроссплатформенных приложений для iOS и Android с использованием языка Dart.",
+    "provider": "Mobile Dev School",
+    "categories": ["Mobile", "Dart"]
+  },
+  {
+    "title": "Next.js: Продвинутая разработка",
+    "description": "Серверный рендеринг (SSR), статическая генерация (SSG) и оптимизация производительности веб-приложений.",
+    "provider": "Vercel Partners",
+    "categories": ["Frontend", "React"]
+  },
+  {
+    "title": "Алгоритмы и структуры данных",
+    "description": "Практическое применение очередей, графов и деревьев поиска для решения сложных инженерных задач.",
+    "provider": "Computer Science Club",
+    "categories": ["Computer Science", "Programming"]
+  },
+  {
+    "title": "Архитектура распределенных систем",
+    "description": "Проектирование микросервисов, работа с брокерами сообщений (Kafka, RabbitMQ) и консистентность данных.",
+    "provider": "System Design School",
+    "categories": ["Architecture", "Backend"]
+  },
+  {
+    "title": "Введение в обработку естественного языка (NLP)",
+    "description": "Токенизация, эмбеддинги и работа с трансформерами для анализа текстовых данных.",
+    "provider": "AI School",
+    "categories": ["Data Science", "AI"]
+  },
+  {
+    "title": "Go для сетевых сервисов",
+    "description": "Разработка быстрых и надежных сетевых приложений с использованием параллелизма (Goroutines).",
+    "provider": "Backend Masters",
+    "categories": ["Go", "Backend"]
+  },
+  {
+    "title": "Тестирование ПО: От Unit до E2E",
+    "description": "Автоматизация тестирования с использованием Pytest, Jest и Playwright.",
+    "provider": "QA Automation Lab",
+    "categories": ["Testing", "QA"]
+  },
+  {
+    "title": "Redis: Кэширование и real-time данные",
+    "description": "Использование In-memory хранилищ для ускорения приложений и реализации очередей задач.",
+    "provider": "Database Center",
+    "categories": ["Databases", "Redis"]
+  },
+  {
+    "title": "TypeScript для профессионалов",
+    "description": "Строгая типизация, Generic-типы и продвинутые возможности языка для крупных проектов.",
+    "provider": "Frontend Academy",
+    "categories": ["Frontend", "TypeScript"]
+  },
+  {
+    "title": "Основы работы в Linux и Bash",
+    "description": "Администрирование серверов, управление правами доступа и написание скриптов для автоматизации.",
+    "provider": "Cloud Systems",
+    "categories": ["DevOps", "Linux"]
+  },
+  {
+    "title": "Deep Learning на PyTorch",
+    "description": "Создание и обучение глубоких нейронных сетей для компьютерного зрения и прогнозирования.",
+    "provider": "AI School",
+    "categories": ["Deep Learning", "AI"]
+  },
+  {
+    "title": "Типографика и сетки",
+    "description": "Глубокое изучение правил работы со шрифтами, модульными сетками и композицией в вебе.",
+    "provider": "Design Hub",
+    "categories": ["Design", "Typography"]
+  },
+  {
+    "title": "Проектирование дизайн-систем",
+    "description": "Создание масштабируемых библиотек компонентов и спецификаций для крупных продуктов.",
+    "provider": "Creative Studio",
+    "categories": ["Design", "UI/UX"]
+  },
+  {
+    "title": "Motion Design в интерфейсах",
+    "description": "Основы анимации элементов интерфейса для улучшения пользовательского опыта.",
+    "provider": "Animation Lab",
+    "categories": ["Design", "Motion"]
+  },
+  {
+    "title": "gRPC и Protocol Buffers на Go",
+    "description": "Разработка высокоэффективного межсервисного взаимодействия в микросервисной архитектуре.",
+    "provider": "Backend Masters",
+    "categories": ["Backend", "Go"]
+  },
+  {
+    "title": "Безопасность веб-приложений (OWASP)",
+    "description": "Защита бэкенда от SQL-инъекций, XSS-атак и правильная реализация OAuth2/JWT.",
+    "provider": "Security Lab",
+    "categories": ["Backend", "Security"]
+  },
+  {
+    "title": "Node.js: Масштабируемые системы",
+    "description": "Работа с Event Loop, потоками данных (Streams) и создание быстрых API на NestJS.",
+    "provider": "JS Institute",
+    "categories": ["Backend", "Node.js"]
+  },
+  {
+    "title": "Vue.js 3: Composition API",
+    "description": "Современные подходы к разработке на Vue, управление состоянием с Pinia и Vite.",
+    "provider": "Frontend Academy",
+    "categories": ["Frontend", "Vue"]
+  },
+  {
+    "title": "Оптимизация Core Web Vitals",
+    "description": "Техники ускорения загрузки и рендеринга для достижения высоких показателей Google PageSpeed.",
+    "provider": "Web Performance Team",
+    "categories": ["Frontend", "Optimization"]
+  },
+  {
+    "title": "Микрофронтенды: Архитектура",
+    "description": "Разделение крупного монолитного фронтенда на независимые модули с Module Federation.",
+    "provider": "System Design School",
+    "categories": ["Frontend", "Architecture"]
   }
 ]

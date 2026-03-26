@@ -43,7 +43,7 @@ export default function ProfilePage() {
     setMessage("");
     
     try {
-      const response = await fetch("ttp://127.0.0.1:8000/users/me", {
+      const response = await fetch("http://127.0.0.1:8000/users/me", {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ interests: selectedTags }),

@@ -6,6 +6,7 @@ from app.services.ai_engine import ai_service
 from app.schemas import RecommendationResponse
 from app.core.security import get_current_user_id
 import logging
+from sqlalchemy.orm import selectinload
 
 router = APIRouter()
 
@@ -18,10 +19,16 @@ def get_recommendations(
     try:
         # Теперь ты точно знаешь, КТО делает запрос (current_user_id)
         print(f"Пользователь {current_user_id} ищет рекомендации {user_query}")
-        query_vector = ai_service.create_embedding(user_query)
+        query_text = f"{user_query}. {user_query}. {user_query}."
+        query_vector = ai_service.create_embedding(
+            title=query_text, 
+            description="", 
+            categories=[]
+        )
 
         statement = (
             select(Course)
+            .options(selectinload(Course.categories)) # ПОДГРУЖАЕМ КАТЕГОРИИ
             .order_by(Course.embedding.cosine_distance(query_vector))
             .limit(3)
         )
