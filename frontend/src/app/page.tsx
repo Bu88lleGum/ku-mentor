@@ -17,6 +17,7 @@ interface CourseRecommendation {
 
 
 export default function Home() {
+  const [warning, setWarning] = useState('');
   const [isAuth, setIsAuth] = useState(false); //Авторизован
   const [query, setQuery] = useState(''); //Запрос
   const [results, setResults] = useState<CourseRecommendation[]>([]); //Результаты
@@ -24,7 +25,16 @@ export default function Home() {
 
   const handleSearch = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!query.trim()) return;
+  
+    // 1. Очищаем старое предупреждение
+    setWarning('');
+
+    // 2. Проверка на минимальную длину (3 символа)
+    if (query.trim().length < 3) {
+      setWarning('Запрос должен содержать минимум 3 буквы');
+      setResults([]); // Очищаем старые результаты, чтобы они исчезли
+      return;
+    }
     
     setLoading(true);
     
@@ -153,15 +163,23 @@ export default function Home() {
               {loading ? '...' : 'Найти'}
             </button>
           </form>
+          {/* Блок предупреждения */}
+          {warning && (
+            <div className="mt-4 p-3 bg-red-50 border border-red-100 rounded-xl flex items-center gap-2 animate-pulse">
+              <span className="text-red-500">⚠️</span>
+              <p className="text-red-700 text-sm font-medium">{warning}</p>
+            </div>
+          )}
         </div>
   
         {/* Результаты */}
         <div className="max-w-4xl mx-auto px-4 mt-10 pb-20"> {/* Добавили отступы и ширину */}
           {results && results.length > 0 ? (
           <div className="relative space-y-6">
-            {results.map((course: any) => (
+            {results.map((course: any, i: number) => (
               <div 
-                key={course.id || course.title} // Используем title если нет id
+                // key={course.id || course.title} // Используем title если нет id
+                key={`${course.id}-${course.title}-${i}`}
                 className="bg-white p-8 rounded-3xl border border-slate-100 shadow-sm hover:shadow-xl transition-all">
                 <div className="flex justify-between items-start mb-4">
                   <h3 className="text-2xl font-bold text-slate-800">{course.title}</h3>
