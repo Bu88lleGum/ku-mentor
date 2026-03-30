@@ -1,67 +1,107 @@
 "use client";
 
 
-
-import { useState } from "react";
-
-
-// Пример ролей из твоей модели
-enum UserRole {
-  STUDENT = "student",
-  EMPLOYER = "employer"
-}
-
+import { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
+import { fetchUserProfile } from "../services/userService"
 
 
 export default function ProfilePage() {
 
-  // Состояния на основе модели User
-  const [userData, setUserData] = useState({
-    username: "Загрузка...",
-    email: "email@example.com",
-    role: UserRole.STUDENT,
-    interests: [] ,
-    createdAt: new Date().toLocaleDateString(),
-    gpa: 4.8,
-  });
 
-  const [selectedTags, setSelectedTags] = useState<string[]>(["Python", "SQL"]);
-  const ALL_TAGS = ["Python", "Data Science", "SQL", "NestJS", "Frontend", "UI/UX"];
+interface UserProfile {
+  username: string;
+  email: string;
+  gpa: number;
+  interests: string[];
+}
 
-  const toggleTag = (tag: string) => {
-    setSelectedTags(prev => 
-      prev.includes(tag) ? prev.filter(t => t !== tag) : [...prev, tag]
-    );
-  };
+const [userData, setUserData] = useState<UserProfile | null>(null);
+const [loading, setLoading] = useState<boolean>(false);
+const [selectedTags, setSelectedTags] = useState<string[]>([]);
+const [allAvailableSkills, setAllAvailableSkills] = useState<{id: number, name: string}[]>([]);
+const [isSaving, setIsSaving] = useState(false);
+const [message, setMessage] = useState("");
 
+const router = useRouter();
+  
 
-  const [isSaving, setIsSaving] = useState(false);
-  const [message, setMessage] = useState("");
-
-  const saveInterests = async () => {
-    setIsSaving(true);
-    setMessage("");
-    
+useEffect(() => {
+  const getData = async () => {
     try {
-      const response = await fetch("http://127.0.0.1:8000/users/me", {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ interests: selectedTags }),
-      });
+      //1. профиль
+      const data = await fetchUserProfile();
+      
+      // все доступные навыки из БД
+      const skillsResponse = await fetch("http://127.0.0.1:8000/skill/");
+      if (skillsResponse.ok) {
+        const skillsData = await skillsResponse.json();
+        setAllAvailableSkills(skillsData);
+      }
+      
+      if (data) {
+        // 2. UserProfile
+        const flattenedData: UserProfile = {
+          username: data.username,
+          email: data.email,
+          gpa: data.student_profile?.gpa ?? 0,
+          interests: data.student_profile?.interests ?? []
+        };
 
-      if (response.ok) {
-        setMessage("Интересы успешно сохранены!");
-        // Скрываем сообщение через 3 секунды
-        setTimeout(() => setMessage(""), 3000);
-      } else {
-        throw new Error("Ошибка при сохранении");
+        // 3. обновляем стейты
+        setUserData(flattenedData);
+        setSelectedTags(flattenedData.interests);
       }
     } catch (err) {
-      setMessage("Не удалось сохранить данные");
+      console.error("Ошибка при загрузке профиля:", err);
+      localStorage.removeItem("token");
+      router.push("/login");
+
     } finally {
-      setIsSaving(false);
+      // 4. Выключаем индикатор загрузки ТОЛЬКО после того, как стейты обновились
+      setLoading(false);
     }
   };
+
+  getData();
+}, []);
+
+
+const toggleTag = (tag: string) => {
+  setSelectedTags(prev => 
+    prev.includes(tag) ? prev.filter(t => t !== tag) : [...prev, tag]
+  );
+};
+
+
+const saveInterests = async () => {
+  setIsSaving(true);
+  
+  // Мапим имена тегов в ID, которые ожидает бэкенд в поле skill_ids
+  const selectedSkillIds = allAvailableSkills
+    .filter(skill => selectedTags.includes(skill.name))
+    .map(skill => skill.id);
+
+  try {
+    const token = localStorage.getItem("token");
+    const response = await fetch("http://127.0.0.1:8000/users/complete-student", {
+      method: "PATCH", 
+      headers: { 
+        "Content-Type": "application/json",
+        "Authorization": `Bearer ${token}`
+      },
+      body: JSON.stringify({ 
+        gpa: userData?.gpa || 0,
+        interests: selectedTags,    // Текстовые названия
+        skill_ids: selectedSkillIds // МАССИВ ЧИСЕЛ (ID из базы)
+      }), 
+    });
+  } catch (err) {
+    setMessage("Ошибка сохранения");
+  } finally {
+    setIsSaving(false);
+  }
+};
 
   return (
     <div className="min-h-screen bg-gray-50/50 py-12 px-4">
@@ -72,37 +112,33 @@ export default function ProfilePage() {
           <div className="flex flex-col md:flex-row items-center gap-6">
             {/* Аватар с инициалом */}
             <div className="h-24 w-24 bg-indigo-600 rounded-3xl flex items-center justify-center text-white text-4xl font-bold shadow-inner">
-              {userData.username[0]?.toUpperCase()}
+              {userData?.username
+                ?.split(' ')             
+                .map(word => word[0])    
+                .join('')                
+                .toUpperCase()           
+                .slice(0, 2)             
+              }
             </div>
 
             <div className="text-center md:text-left flex-1">
               <div className="flex flex-col md:flex-row md:items-center gap-2 mb-1">
-                <h1 className="text-2xl font-bold text-gray-900">{userData.username}</h1>
-                <span className={`text-xs px-2 py-1 rounded-full font-bold uppercase tracking-wider ${
-                  userData.role === UserRole.EMPLOYER ? "bg-purple-100 text-purple-700" : "bg-blue-100 text-blue-700"
-                }`}>
-                  {userData.role === UserRole.STUDENT ? "Студент" : "Работодатель"}
-                </span>
+                <h1 className="text-2xl font-bold text-gray-900">{userData?.username}</h1>
               </div>
               
-              <p className="text-gray-500 text-sm mb-3">{userData.email}</p>
+              <p className="text-gray-500 text-sm mb-3">{userData?.email}</p>
               
               <div className="flex flex-wrap justify-center md:justify-start gap-3">
-                <div className="bg-gray-100 px-3 py-1 rounded-lg text-gray-600 text-xs">
-                  На платформе с: {userData.createdAt}
-                </div>
-                {userData.role === UserRole.STUDENT && (
                   <div className="bg-indigo-50 px-3 py-1 rounded-lg text-indigo-700 text-xs font-bold">
-                    GPA: {userData.gpa}
+                    GPA: {userData?.gpa}
                   </div>
-                )}
               </div>
             </div>
 
           </div>
         </div>
 
-        {/* Блок интересов (Логика не меняется, но важна для STUDENT) */}
+        {/* Блок интересов*/}
         <div className="bg-white border border-gray-100 rounded-3xl p-8 shadow-sm">
           <div className="flex justify-between items-start mb-2">
             <div>
@@ -124,18 +160,20 @@ export default function ProfilePage() {
           </div>
 
           <div className="flex flex-wrap gap-2">
-            {ALL_TAGS.map(tag => (
-              <button
-                key={tag}
-                onClick={() => toggleTag(tag)}
-                className={`px-4 py-2 rounded-xl text-sm font-medium transition-all duration-200 ${
-                  selectedTags.includes(tag)
-                    ? "bg-indigo-700 text-white shadow-md"
-                    : "bg-gray-50 text-gray-600 hover:bg-gray-100"
-                }`}>
-                {tag} {selectedTags.includes(tag) ? "✕" : "+"}
-              </button>
-            ))}
+            {allAvailableSkills.map(skill => {
+              const isSelected = selectedTags.includes(skill.name); 
+              return (
+                <button
+                  key={skill.id} // Теперь ключ — это реальный ID из базы
+                  onClick={() => toggleTag(skill.name)}
+                  className={`px-4 py-2 rounded-xl text-sm font-medium transition-all duration-200 ${
+                    isSelected ? "bg-indigo-700 text-white shadow-md" : "bg-gray-50 text-gray-600 hover:bg-gray-100"
+                  }`}
+                >
+                  {skill.name} {isSelected ? "✕" : "+"}
+                </button>
+              );
+            })}
           </div>
         </div>
 
