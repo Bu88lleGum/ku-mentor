@@ -13,7 +13,7 @@ class AIEngine:
             cache_dir=cache_path  # Теперь модель не будет зависеть от папки Temp
         )
 
-    def create_embedding(self, title: str, description: str, categories: list[str]) -> list[float]:
+    def create_embedding(self, title: str, description: str = "", categories: list[str] = []) -> list[float]:
         clean_categories = [cat.name if hasattr(cat, 'name') else str(cat) for cat in categories]
         categories_str = ", ".join(clean_categories)
         
