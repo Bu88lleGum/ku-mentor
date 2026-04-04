@@ -2,10 +2,11 @@
 
 
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import Link from "next/link"
 import LogoutButton from "@/src/app/components/logoutButton";
-import { fetchUserProfile } from "./services/userService"
+import { fetchUserProfile } from "./services/userService";
+import { useSearchParams } from 'next/navigation';
 
 
 // Типизация ответа от твоего FastAPI
@@ -19,11 +20,53 @@ interface CourseRecommendation {
 
 export default function Home() {
 
+  const searchParams = useSearchParams(); // Инициализируем хук
   const [warning, setWarning] = useState('');
   const [isAuth, setIsAuth] = useState(false); //Авторизован
   const [query, setQuery] = useState(''); //Запрос
   const [results, setResults] = useState<CourseRecommendation[]>([]); //Результаты
   const [loading, setLoading] = useState(false); //Загрузка
+
+const executeSearch = useCallback(async (searchQuery: string) => {
+    if (searchQuery.trim().length < 3) {
+      setWarning('Запрос должен содержать минимум 3 буквы');
+      return;
+    }
+
+    setLoading(true);
+    setWarning('');
+
+    try {
+      const token = localStorage.getItem("token");
+      const response = await fetch(`http://127.0.0.1:8000/recommend/?user_query=${encodeURIComponent(searchQuery)}`, {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { 'Authorization': `Bearer ${token}` } : {})
+        }
+      });
+
+      if (response.status === 401) {
+        setIsAuth(false);
+        return;
+      }
+
+      const data = await response.json();
+      
+      // Логика обработки массива данных (твоя оригинальная)
+      if (Array.isArray(data)) {
+        setResults(data);
+      } else {
+        const autoFoundArray = Object.values(data).find(val => Array.isArray(val));
+        setResults(Array.isArray(autoFoundArray) ? (autoFoundArray as CourseRecommendation[]) : []);
+      }
+    } catch (error) {
+      console.error("Ошибка соединения:", error);
+      setResults([]);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
 
   const handleSearch = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -109,6 +152,16 @@ useEffect(() => {
 
   checkAuth();
 }, []);
+
+// 2. Логика подхвата запроса из URL (из профиля)
+  useEffect(() => {
+    const queryFromUrl = searchParams.get('query');
+    if (queryFromUrl && isAuth) { // Запускаем только если пользователь авторизован
+      setQuery(queryFromUrl);
+      executeSearch(queryFromUrl); // Сразу запускаем поиск
+    }
+  }, [searchParams, isAuth, executeSearch]); // Следим за изменением параметров URL и авторизацией
+  
   
   return (
     

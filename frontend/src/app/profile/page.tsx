@@ -16,6 +16,13 @@ interface UserProfile {
   interests: string[];
 }
 
+interface SearchHistory {
+  id: number;
+  query_text: string;
+  created_at: string;
+}
+
+const [searchHistory, setSearchHistory] = useState<SearchHistory[]>([]);
 const [userData, setUserData] = useState<UserProfile | null>(null);
 const [loading, setLoading] = useState<boolean>(false);
 const [selectedTags, setSelectedTags] = useState<string[]>([]);
@@ -26,9 +33,24 @@ const [message, setMessage] = useState("");
 const router = useRouter();
   
 
+// 1. Интерфейс (подстрой под свои поля из базы)
+interface EnrolledCourse {
+  id: number;
+  course_id: number;
+  course_name: string; // Или запрашивай через JOIN
+}
+
+// 2. Стейт внутри компонента
+const [enrolledCourses, setEnrolledCourses] = useState<EnrolledCourse[]>([]);
+
+
+
+
 useEffect(() => {
   const getData = async () => {
     try {
+      const token = localStorage.getItem("token");
+
       //1. профиль
       const data = await fetchUserProfile();
       
@@ -52,6 +74,31 @@ useEffect(() => {
         setUserData(flattenedData);
         setSelectedTags(flattenedData.interests);
       }
+
+      // Загрузка истории поиска
+      const historyResponse = await fetch("http://127.0.0.1:8000/searchhistory/history", {
+        headers: {
+          "Authorization": `Bearer ${token}`
+        }
+      });
+
+      if (historyResponse.ok) {
+        const historyData = await historyResponse.json();
+        // Фильтрация уникальных запросов (оставляем только самый свежий)
+        const uniqueHistory = historyData.reduce((acc: SearchHistory[], current: SearchHistory) => {
+          // Проверяем, есть ли уже такой текст запроса в нашем аккумуляторе (acc)
+          const x = acc.find(item => item.query_text === current.query_text);
+          if (!x) {
+            // Если текста еще нет — добавляем его в список
+            return acc.concat([current]);
+          } else {
+            // Если текст уже есть — пропускаем его (так как первый встреченный в массиве — самый новый)
+            return acc;
+          }
+        },[]); 
+        setSearchHistory(uniqueHistory);}
+
+
     } catch (err) {
       console.error("Ошибка при загрузке профиля:", err);
       localStorage.removeItem("token");
@@ -179,12 +226,45 @@ const saveInterests = async () => {
 
         {/* Сетка действий */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          <div className="bg-white border border-gray-100 rounded-3xl p-6 shadow-sm">
-            <h3 className="font-bold text-gray-900 mb-1 text-lg">История поиска</h3>
-            <p className="text-sm text-gray-400">Ваши последние запросы по курсам и вакансиям.</p>
+          
+          {/* Блок истории поиска */}
+          <div className="bg-white border border-gray-100 rounded-3xl p-6 shadow-sm overflow-hidden">
+            <div className="mb-4">
+              <h3 className="font-bold text-gray-900 text-lg">История поиска</h3>
+              <p className="text-sm text-gray-400 font-medium">Ваши последние запросы</p>
+            </div>
+
+              <div className="space-y-3">
+                {searchHistory.length > 0 ? (
+                  searchHistory.slice(0, 5).map((item) => (
+                    <button
+                      key={item.id}
+                      // При клике переходим на главную и добавляем query в URL
+                      onClick={() => router.push(`/?query=${encodeURIComponent(item.query_text)}`)}
+                      className="w-full flex justify-between items-center p-3 bg-gray-50 rounded-2xl hover:bg-indigo-50 hover:ring-1 hover:ring-indigo-200 transition-all group"
+                    >
+                      <span className="text-sm font-semibold text-gray-700 group-hover:text-indigo-700">
+                        {item.query_text}
+                      </span>
+                      <div className="flex items-center gap-2">
+                        <span className="text-[10px] text-gray-400 uppercase font-bold">
+                          {new Date(item.created_at).toLocaleDateString('ru-RU')}
+                        </span>
+                        {/* Маленькая иконка стрелочки, которая появляется при наведении */}
+                        <svg className="w-4 h-4 text-indigo-400 opacity-0 group-hover:opacity-100 transition-opacity" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                        </svg>
+                      </div>
+                    </button>
+                  ))
+                ) : (
+                  <p className="text-sm text-gray-400 italic">История пока пуста</p>
+                )}
+              </div>
+
           </div>
 
-          <div className="bg-indigo-700 rounded-3xl p-6 shadow-xl shadow-indigo-100 flex flex-col justify-between items-start text-white">
+          {/* <div className="bg-indigo-700 rounded-3xl p-6 shadow-xl shadow-indigo-100 flex flex-col justify-between items-start text-white">
             <div>
               <h3 className="font-bold text-lg mb-1">Рекомендации ИИ</h3>
               <p className="text-indigo-100 text-sm opacity-90">На основе вашей роли и интересов мы подготовили новые предложения.</p>
@@ -193,6 +273,45 @@ const saveInterests = async () => {
               onClick={() => window.location.href = '/'}
               className="mt-6 bg-white text-indigo-700 px-6 py-2 rounded-xl text-sm font-bold hover:bg-indigo-50 transition-all shadow-md">
               Смотреть всё
+            </button>
+          </div> */}
+
+
+          <div className="bg-white border border-indigo-100 rounded-3xl p-6 shadow-sm flex flex-col justify-between items-start">
+            <div className="w-full">
+              <div className="flex justify-between items-center mb-4">
+                <h3 className="font-bold text-gray-900 text-lg">Мои курсы</h3>
+                <span className="bg-indigo-100 text-indigo-700 text-[10px] font-bold px-2 py-1 rounded-md uppercase">
+                  {enrolledCourses.length} Активно
+                </span>
+              </div>
+
+              {/* Список зачисленных курсов */}
+              <div className="space-y-3 mb-6">
+                {enrolledCourses.length > 0 ? (
+                  enrolledCourses.slice(0, 3).map((course) => (
+                    <div key={course.id} className="flex items-center gap-3 p-3 bg-indigo-50/50 rounded-2xl border border-indigo-100/50">
+                      <div className="w-2 h-2 rounded-full bg-indigo-500 animate-pulse" />
+                      <span className="text-sm font-medium text-gray-700 truncate">
+                        {course.course_name || `Курс #${course.course_id}`}
+                      </span>
+                    </div>
+                  ))
+                ) : (
+                  <p className="text-sm text-gray-400 italic py-2 text-center">Вы еще не записались на курсы</p>
+                )}
+              </div>
+            </div>
+
+            {/* Кнопка возврата на главную */}
+            <button 
+              onClick={() => router.push('/')}
+              className="w-full flex items-center justify-center gap-2 bg-indigo-600 text-white px-6 py-3 rounded-2xl text-sm font-bold hover:bg-indigo-700 transition-all shadow-lg shadow-indigo-200 active:scale-95"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="m15 18-6-6 6-6"/>
+              </svg>
+              Вернуться к поиску
             </button>
           </div>
         </div>
