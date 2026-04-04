@@ -7,6 +7,7 @@ import Link from "next/link"
 import LogoutButton from "@/src/app/components/logoutButton";
 import { fetchUserProfile } from "./services/userService";
 import { useSearchParams } from 'next/navigation';
+import { motion } from "framer-motion";
 
 
 // Типизация ответа от твоего FastAPI
@@ -162,13 +163,23 @@ useEffect(() => {
     }
   }, [searchParams, isAuth, executeSearch]); // Следим за изменением параметров URL и авторизацией
   
-  
+  const CourseSkeleton = () => (
+  <div className="bg-white p-8 rounded-3xl border border-slate-100 animate-pulse">
+    <div className="flex justify-between mb-4">
+      <div className="h-8 w-1/3 bg-slate-200 rounded-lg"></div>
+      <div className="h-6 w-16 bg-slate-100 rounded-full"></div>
+    </div>
+    <div className="space-y-3">
+      <div className="h-4 w-full bg-slate-100 rounded"></div>
+      <div className="h-4 w-5/6 bg-slate-100 rounded"></div>
+    </div>
+  </div>
+);
   return (
     
     <div className="min-h-screen bg-slate-50 text-slate-900 font-sans">
       {/* Хэдер на весь экран с синим фоном */}
-      <header className="bg-indigo-700 pt-16 pb-20">
-    
+<header className="relative pt-16 pb-20 bg-gradient-to-br from-[#A9F4FF] via-[#05A4BA] to-[#1D869E]">    
         {/* Кнопки в верхнем правом углу */}
         <div className="absolute top-6 right-6 flex gap-4">
         {isAuth ? (
@@ -178,7 +189,7 @@ useEffect(() => {
 
             <Link 
               href="/profile" 
-              className="bg-white text-indigo-700 px-5 py-2 rounded-xl font-bold shadow-lg hover:bg-indigo-50 transition-all"
+              className="bg-white text-[#05A4BA] px-5 py-2 rounded-xl font-bold shadow-lg hover:bg-[#1D869E] hover:text-white transition-all"
             >Мой профиль</Link>
           </>
         
@@ -186,7 +197,7 @@ useEffect(() => {
           /* Если НЕ авторизован — показываем кнопку Войти */
           <Link 
             href="/login" 
-            className="bg-indigo-600 text-white px-5 py-2 rounded-xl font-bold shadow-lg hover:bg-indigo-700 transition-all"
+            className="bg-[#2A8DA4] text-white px-5 py-2 rounded-xl font-bold shadow-lg hover:bg-[#1D869E] transition-all"
           >
             Войти
           </Link>
@@ -196,12 +207,17 @@ useEffect(() => {
         {/* Центральная часть хэдера */}
         <div className="text-center">
           <h1 className="text-6xl font-extrabold text-white my-24">KU Mentor</h1>
-          <p className="text-xl text-indigo-100 max-w-2xl mx-auto">Твой персональный ИИ-секретарь: найди курс по смыслу, а не по буквам.</p>
+          <p className="text-xl text-[#A9F4FF] max-w-2xl mx-auto">Твой персональный ИИ-секретарь: найди курс по смыслу, а не по буквам.</p>
         </div>
       </header>
 
       {/* Результаты */}
       <main className="max-w-4xl mx-auto px-4">
+        {loading && (
+          <div className="space-y-6 mt-10">
+            {[1, 2, 3].map((i) => <CourseSkeleton key={i} />)}
+          </div>
+        )}
         <div className="bg-white p-6 rounded-2xl shadow-xl border border-gray-100 -mt-10 relative z-10">
     
           {/* Сообщение для неавторизованных пользователей */}
@@ -222,7 +238,7 @@ useEffect(() => {
               className={`w-full p-6 text-lg rounded-2xl shadow-xl transition-all
                 ${!isAuth 
                   ? "bg-gray-100 cursor-not-allowed text-gray-400 placeholder-gray-400" 
-                  : "bg-white text-black outline-none focus:ring-4 focus:ring-indigo-300 shadow-indigo-100/50"
+                  : "bg-white text-black outline-none focus:ring-4 focus:ring-blue-300 shadow-blue-100/50"
               }`}
               placeholder={isAuth ? "Опиши свои интересы..." : "Поиск доступен только после входа"}
               value={query}
@@ -236,7 +252,7 @@ useEffect(() => {
               className={`absolute right-3 top-3 bottom-3 px-8 font-bold rounded-xl transition-all 
                 ${!isAuth 
                   ? "bg-gray-200 text-gray-400 cursor-not-allowed" 
-                  : "bg-indigo-600 hover:bg-indigo-700 text-white shadow-lg active:scale-95 disabled:opacity-50"
+                  : "bg-[#05A4BA] hover:bg-[#1D869E] text-white shadow-lg active:scale-95 disabled:opacity-50"
                 }`}
                 >
               {loading ? '...' : 'Найти'}
@@ -257,23 +273,29 @@ useEffect(() => {
           <div className="relative space-y-6">
             {results.map((course: any, i: number) => (
               <div 
-                // key={course.id || course.title} // Используем title если нет id
                 key={`${course.id}-${course.title}-${i}`}
-                className="bg-white p-8 rounded-3xl border border-slate-100 shadow-sm hover:shadow-xl transition-all">
+                className="bg-white p-8 rounded-3xl border border-slate-100 shadow-sm hover:shadow-xl transition-all hover:border-l-4 hover:border-l-[#05A4BA]">
+                  <motion.div 
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.3, delay: i * 0.1 }}
+                className="..."
+              >
                 <div className="flex justify-between items-start mb-4">
                   <h3 className="text-2xl font-bold text-slate-800">{course.title}</h3>
-                  <span className="bg-indigo-100 text-indigo-700 text-xs font-bold px-3 py-1 rounded-full uppercase">Курс</span>
+                  <span className="bg-[#A9F4FF] text-[#1D869E] text-xs font-bold px-3 py-1 rounded-full uppercase">Курс</span>
                 </div>
-                <p className="text-slate-600 leading-relaxed text-lg">
+                <p className="text-[#2A8DA4] leading-relaxed text-lg">
                   {course.description}
                 </p>
+                </motion.div>
               </div>
             ))}
           </div>
           ) : (
             !loading && query && (
-              <div className="text-center py-20 bg-white rounded-3xl border-2 border-dashed border-slate-200">
-               <p className="text-slate-400 text-xl font-medium">Ничего не найдено.</p>
+              <div className="text-center py-20 bg-white rounded-3xl border-2 border-dashed border-[#A9F4FF]">
+               <p className="text-[#05A4BA] text-xl font-medium">Ничего не найдено.</p>
               </div>
             )
           )}
@@ -282,7 +304,5 @@ useEffect(() => {
     </div>
   );
 }
-
-
 
 
