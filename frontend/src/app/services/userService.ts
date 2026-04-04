@@ -23,9 +23,19 @@ export const fetchUserProfile = async () => {
     // 4. Проверяем статус ответа
     if (!response.ok) {
       // Если токен протух (401), лучше его удалить
+      
       if (response.status === 401) {
-        localStorage.removeItem("token");
-      }
+
+      localStorage.removeItem("token");
+
+      // 1. Создаем событие с сообщением в поле detail
+      const event = new CustomEvent("show-toast", { 
+        detail: "Сессия истекла. Пожалуйста, войдите снова." 
+      });
+
+      // 2. Отправляем его на уровень всего окна (window)
+      window.dispatchEvent(event);
+    }
       throw new Error(`Ошибка сервера: ${response.status}`);
     }
 

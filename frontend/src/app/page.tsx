@@ -5,6 +5,7 @@
 import { useState, useEffect } from 'react';
 import Link from "next/link"
 import LogoutButton from "@/src/app/components/logoutButton";
+import { fetchUserProfile } from "./services/userService"
 
 
 // Типизация ответа от твоего FastAPI
@@ -17,6 +18,7 @@ interface CourseRecommendation {
 
 
 export default function Home() {
+
   const [warning, setWarning] = useState('');
   const [isAuth, setIsAuth] = useState(false); //Авторизован
   const [query, setQuery] = useState(''); //Запрос
@@ -48,6 +50,10 @@ export default function Home() {
           ...(token ? { 'Authorization': `Bearer ${token}` } : {})
         }
         });
+      if (response.status === 401) {
+        setIsAuth(false);
+        return;
+      }
 
       const data = await response.json();
 
@@ -68,6 +74,7 @@ export default function Home() {
       // -------------------------------
 
     } catch (error) {
+      setIsAuth(false)
       console.error("Ошибка соединения:", error);
       setResults([]);
     } finally {
@@ -75,17 +82,36 @@ export default function Home() {
     }
   };
 
-
   // Проверка авторизации
-  useEffect(() => {
-    const token = localStorage.getItem("token");
-    if (token) {
-      setIsAuth(true);
+useEffect(() => {
+  const token = localStorage.getItem("token");
+  
+  const checkAuth = async () => {
+    if (!token){
+      return;
     }
-  }, []);
+    try {
+      // Проверяем реальность токена через запрос к профилю
+      await fetchUserProfile(); 
+      setIsAuth(true);
+    } catch (err) {
+      // Токен оказался невалидным или истек
+      localStorage.removeItem("token");
+      localStorage.removeItem("user");
+      setIsAuth(false);
 
+      // Генерируем уведомление, которое поймает ToastProvider в layout.tsx
+      window.dispatchEvent(new CustomEvent("show-toast", { 
+        detail: "Сессия истекла. Пожалуйста, войдите в аккаунт снова." 
+      }));
+    }
+  };
+
+  checkAuth();
+}, []);
   
   return (
+    
     <div className="min-h-screen bg-slate-50 text-slate-900 font-sans">
       {/* Хэдер на весь экран с синим фоном */}
       <header className="bg-indigo-700 pt-16 pb-20">

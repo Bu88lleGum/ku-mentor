@@ -1,19 +1,23 @@
 "use client";
 
 import { useRouter } from 'next/navigation';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { useSearchParams } from 'next/navigation';
+
 
 export default function LoginPage() {
   const router = useRouter(); 
+  const searchParams = useSearchParams();
   const [username, setUsername] = useState(''); // email
   const [password, setPassword] = useState(''); // пароль
-  const [error, setError] = useState(''); // ошибки
+  const error = searchParams.get('error');
   const [isLoading, setIsLoading] = useState(false); //загрузка
+  
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
-    setError('');
+    // setError('');
 
     try {
       // 1. Создаем объект URLSearchParams (формат application/x-www-form-urlencoded)
@@ -45,10 +49,20 @@ export default function LoginPage() {
       router.push('/profile'); 
       
     } catch (err: any) {
-      setError(err.message);
+      // setError(err.message);
       setIsLoading(false);
     }
   };
+
+  useEffect(() => {
+    if (error === 'session_expired') {
+      window.dispatchEvent(new CustomEvent("show-toast", { 
+        detail: "Сессия истекла. Пожалуйста, войдите снова." 
+      }));
+    }
+  }, [error]);
+
+  
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gray-50 px-4">

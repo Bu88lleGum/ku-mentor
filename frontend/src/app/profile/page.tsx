@@ -55,7 +55,7 @@ useEffect(() => {
     } catch (err) {
       console.error("Ошибка при загрузке профиля:", err);
       localStorage.removeItem("token");
-      router.push("/login");
+      router.push("/login?error=session_expired");
 
     } finally {
       // 4. Выключаем индикатор загрузки ТОЛЬКО после того, как стейты обновились
@@ -64,7 +64,7 @@ useEffect(() => {
   };
 
   getData();
-}, []);
+}, [router]);
 
 
 const toggleTag = (tag: string) => {
