@@ -177,5 +177,8 @@ docker-compose.yml — Multi-container configuration for the database environmen
 
 ## 👥 Contributors:
 
-- **Konstantin Permin** (@Bu88lleGum) — Backend & AI Integration, Database, ORM, Deployment
-- **Venom** (@tea-ervi) — Frontend
+- **Konstantin Permin** ([@Bu88lleGum][konst-link]) — Backend & AI Integration, Database, ORM, Deployment
+- **Venom** ([@tea-ervi][venom-link]) — Frontend, UI-UX Design
+
+[konst-link]: https://github.com/Bu88lleGum
+[venom-link]: https://github.com/tea-ervi
