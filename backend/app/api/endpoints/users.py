@@ -6,7 +6,7 @@ from app.models import User, StudentProfile, StudentSkill, EmployerProfile
 from app.schemas.user import UserCreate, UserRead, ProfileUpdate, EmployerProfileUpdate
 from app.crud import user as user_crud
 from app.core.security import get_current_user_id # Добавь защиту
-
+from app.services.ai_engine import ai_service
 router = APIRouter()
 
 @router.post("/register", response_model=UserRead)
@@ -38,24 +38,31 @@ def complete_student_profile(
     if not profile:
         raise HTTPException(status_code=404, detail="Профиль студента не найден")
 
-    # 1. Обновляем GPA и интересы (это работает всегда)
+    # 1. Обновляем GPA (без изменений)
     if profile_data.gpa is not None:
         profile.gpa = profile_data.gpa
+        
+    # 2. Обновляем ИНТЕРЕСЫ и генерируем ЭМБЕДДИНГ
     if profile_data.interests is not None:
         profile.interests = profile_data.interests
+        
+        # Склеиваем массив ["Python", "FastAPI"] в строку "Python, FastAPI"
+        interests_text = ", ".join(profile_data.interests)
+        
+        # Обращаемся к нашему AI движку для генерации вектора
+        vector = ai_service.embed_text(interests_text)
+        
+        if vector: # Сохраняем, только если вектор успешно сгенерировался
+            profile.interests_embedding = vector
 
-    # 2. Обновляем скиллы ТОЛЬКО если пришел список ID
-    # И если этот список не содержит мусорных данных типа [0]
+    # 3. Обновляем скиллы (без изменений)
     if profile_data.skill_ids is not None:
-        # Удаляем старые связи
         from sqlmodel import delete
         session.execute(delete(StudentSkill).where(StudentSkill.student_id == profile.id))
 
-        # Добавляем новые, только если ID реально существуют
         for s_id in profile_data.skill_ids:
-            if s_id == 0: # Пропускаем дефолтное значение из Docs
+            if s_id == 0: 
                 continue
-            
             new_link = StudentSkill(student_id=profile.id, skill_id=s_id, level=1)
             session.add(new_link)
 

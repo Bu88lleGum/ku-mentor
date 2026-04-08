@@ -26,7 +26,7 @@ class ProfileUpdate(BaseModel):
     gpa: float | None = Field(None, ge=0, le=4.0) 
     interests: List[str] | None = None
     skill_ids: List[int] | None = None
-    
+        
     class Config:
         from_attributes = True # Позволяет Pydantic читать данные прямо из SQLModel объектов
 
