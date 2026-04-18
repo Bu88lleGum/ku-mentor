@@ -1,3 +1,8 @@
+export interface UserResponse {
+  username: string;
+  email: string;
+  userrole: 'STUDENT' | 'EMPLOYER'}
+
 /**
  * Функция для получения данных текущего авторизованного пользователя
  */
@@ -41,6 +46,7 @@ export const fetchUserProfile = async () => {
 
     // 5. Возвращаем распарсенные данные (username, email, gpa и т.д.)
     const data = await response.json();
+    console.log("Данные из API:", data);
     return data;
 
   } catch (error) {
