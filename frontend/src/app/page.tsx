@@ -195,12 +195,20 @@ useEffect(() => {
         
         ) : (
           /* Если НЕ авторизован — показываем кнопку Войти */
+          <>
           <Link 
             href="/login" 
             className="bg-[#2A8DA4] text-white px-5 py-2 rounded-xl font-bold shadow-lg hover:bg-[#1D869E] transition-all"
           >
             Войти
           </Link>
+          <Link 
+            href="/register" 
+            className="bg-white text-[#1D869E] px-5 py-2 rounded-xl font-bold shadow-lg hover:bg-[#2A8DA4] hover:text-white transition-all"
+          >
+            Зарегестрироваться
+          </Link>
+          </>
         )}
         </div>
 
@@ -267,39 +275,62 @@ useEffect(() => {
           )}
         </div>
   
-        {/* Результаты */}
-        <div className="max-w-4xl mx-auto px-4 mt-10 pb-20"> {/* Добавили отступы и ширину */}
-          {results && results.length > 0 ? (
-          <div className="relative space-y-6">
-            {results.map((course: any, i: number) => (
-              <div 
-                key={`${course.id}-${course.title}-${i}`}
-                className="bg-white p-8 rounded-3xl border border-slate-100 shadow-sm hover:shadow-xl transition-all hover:border-l-4 hover:border-l-[#05A4BA]">
-                  <motion.div 
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.3, delay: i * 0.1 }}
-                className="..."
+{/* Результаты */}
+<div className="max-w-4xl mx-auto px-4 mt-10 pb-20">
+  {results && results.length > 0 ? (
+    <div className="relative space-y-6">
+      {results.map((course: any, i: number) => (
+        <div
+          key={`${course.id}-${course.title}-${i}`}
+          className="bg-white p-8 rounded-3xl border border-slate-100 shadow-sm hover:shadow-xl transition-all hover:border-l-4 hover:border-l-[#05A4BA] group"
+        >
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.3, delay: i * 0.1 }}
+          >
+            <div className="flex justify-between items-start mb-4">
+              <h3 className="text-2xl font-bold text-slate-800 group-hover:text-[#1D869E] transition-colors">
+                {course.title}
+              </h3>
+              <span className="bg-[#A9F4FF] text-[#1D869E] text-xs font-bold px-3 py-1 rounded-full uppercase">
+                Курс
+              </span>
+            </div>
+            
+            <p className="text-[#2A8DA4] leading-relaxed text-lg mb-8">
+              {course.description}
+            </p>
+
+            {/* Кнопка перехода */}
+            <div className="flex justify-end">
+              <Link 
+                href={`/course/${course.id}`} // Динамический путь на основе ID
+                className="flex items-center gap-2 px-6 py-3 bg-[#05A4BA] text-white font-bold rounded-2xl hover:bg-[#1D869E] active:scale-95 transition-all shadow-lg shadow-cyan-100"
               >
-                <div className="flex justify-between items-start mb-4">
-                  <h3 className="text-2xl font-bold text-slate-800">{course.title}</h3>
-                  <span className="bg-[#A9F4FF] text-[#1D869E] text-xs font-bold px-3 py-1 rounded-full uppercase">Курс</span>
-                </div>
-                <p className="text-[#2A8DA4] leading-relaxed text-lg">
-                  {course.description}
-                </p>
-                </motion.div>
-              </div>
-            ))}
-          </div>
-          ) : (
-            !loading && query && (
-              <div className="text-center py-20 bg-white rounded-3xl border-2 border-dashed border-[#A9F4FF]">
-               <p className="text-[#05A4BA] text-xl font-medium">Ничего не найдено.</p>
-              </div>
-            )
-          )}
+                Подробнее
+                <svg 
+                  className="w-5 h-5 transition-transform group-hover:translate-x-1" 
+                  fill="none" 
+                  viewBox="0 0 24 24" 
+                  stroke="currentColor"
+                >
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7l5 5m0 0l-5 5m5-5H6" />
+                </svg>
+              </Link>
+            </div>
+          </motion.div>
         </div>
+      ))}
+    </div>
+  ) : (
+    !loading && query && (
+      <div className="text-center py-20 bg-white rounded-3xl border-2 border-dashed border-[#A9F4FF]">
+        <p className="text-[#05A4BA] text-xl font-medium">Ничего не найдено.</p>
+      </div>
+    )
+  )}
+</div>
       </main>
     </div>
   );
