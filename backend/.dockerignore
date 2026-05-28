@@ -1,0 +1,42 @@
+# Python/Интерпретатор
+**/__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Виртуальное окружение
+venv/
+.venv/
+env/
+
+# Локальные базы данных и кэш моделей
+# (Особенно важно, если в model_cache лежат веса эмбеддингов вроде BGE-M3 или Sentence-Transformers)
+model_cache/
+*.db
+*.sqlite3
+
+# Конфиденциальные данные и переменные окружения
+.env
+.env.*
+!.env.example
+
+# Документация и схемы дизайна (им не место в продакшн-образе)
+ER diagram/
+*.pptx
+*.png
+*.jpg
+*.md
+
+# Логи и тесты
+.pytest_cache/
+htmlcov/
+.tox/
+*.log
+
+# Системные файлы
+.DS_Store
+Thumbs.db
+.git
+.gitignore
+
+tests/

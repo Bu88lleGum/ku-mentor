@@ -7,7 +7,7 @@ from app.models import (
     Vacancy, Application
 )
 from app.models.enums import UserRole
-from app.services.ai_engine import ai_service # Импортируем твой экземпляр
+from app.services.ai_engine import ai_service 
 
 def seed_all():
     print("🚀 Начинаю процесс заполнения базы данных...")
@@ -27,19 +27,18 @@ def seed_all():
                     session.add(db_provider)
                     session.flush()
 
-                # Ищем курс, чтобы обновить или создать
+                # Ищем курс, чтобы проверить его существование
                 course = session.exec(select(Course).where(Course.title == item["title"])).first()
                 
-                # Генерируем НОВЫЙ усиленный вектор (теперь передаем всё!)
-                print(f"  📚 Векторизация: {item['title']}...")
-                new_vector = ai_service.create_embedding(
-                    title=item["title"], 
-                    description=item["description"], 
-                    categories=item.get("categories", [])
-                )
-
                 if not course:
-                    # Создаем новый, если нет
+                    # 🧠 Абсолютно новый курс -> векторизуем сразу
+                    print(f"  📚 Векторизация нового курса: {item['title']}...")
+                    new_vector = ai_service.create_embedding(
+                        title=item["title"], 
+                        description=item["description"], 
+                        categories=item.get("categories", [])
+                    )
+
                     course = Course(
                         title=item["title"],
                         description=item["description"],
@@ -48,11 +47,23 @@ def seed_all():
                     )
                     session.add(course)
                 else:
-                    # ОБНОВЛЯЕМ существующий (чтобы веса наконец применились)
-                    course.embedding = new_vector
-                    course.description = item["description"]
+                    # 🔍 Курс уже есть. Проверяем, изменилось ли описание
+                    if course.description != item["description"]:
+                        print(f"  🔄 Описание курса '{item['title']}' изменилось! Пересчитываю вектор...")
+                        
+                        # Пересчитываем вектор, так как описание — часть вектора!
+                        new_vector = ai_service.create_embedding(
+                            title=item["title"], 
+                            description=item["description"], 
+                            categories=item.get("categories", [])
+                        )
+                        course.description = item["description"]
+                        course.embedding = new_vector
+                    else:
+                        # Если всё совпадает -> пропускаем тяжелую векторизацию
+                        print(f"  ✅ Курс '{item['title']}' без изменений. Векторизация пропущена.")
                 
-                # Обновляем категории
+                # Обновляем категории (выполняется мгновенно)
                 course.categories = [] # Очищаем старые связи, чтобы не дублировать
                 for c_name in item.get("categories", []):
                     db_cat = session.exec(select(Category).where(Category.name == c_name)).first()
@@ -64,6 +75,7 @@ def seed_all():
 
         except FileNotFoundError:
             print("⚠️ Файл data.json не найден, импорт курсов пропущен.")
+
         # --- 2. ТЕСТОВЫЙ СТУДЕНТ ---
         student_email = "konstantin@example.com"
         if not session.exec(select(User).where(User.email == student_email)).first():
@@ -81,6 +93,8 @@ def seed_all():
             session.add(skill)
             session.flush()
             session.add(StudentSkill(student_id=profile.id, skill_id=skill.id, level=5))
+        else:
+            print("  ✅ Профиль студента уже создан.")
 
         # --- 3. ТЕСТОВЫЙ РАБОТОДАТЕЛЬ И ВАКАНСИЯ ---
         emp_email = "hr@kutech.com"
@@ -95,15 +109,20 @@ def seed_all():
             session.flush()
 
             vacancy_text = "Нужен Python разработчик со знанием FastAPI."
+            
+            # Генерируем вектор вакансии ТОЛЬКО в момент первого создания записи
+            print(f"  🧠 Векторизация тестовой вакансии...")
+            vacancy_embedding = ai_service.create_embedding(title=vacancy_text, description="", categories=[])
+
             vacancy = Vacancy(
                 employer_id=emp_profile.id,
                 title="Python Developer",
                 description=vacancy_text,
-                # Было: embedding=ai_service.create_embedding(vacancy_text)
-                # Нужно (передаем текст вакансии в title, остальное пустое):
-                embedding=ai_service.create_embedding(title=vacancy_text, description="", categories=[])
+                embedding=vacancy_embedding
             )
             session.add(vacancy)
+        else:
+            print("  ✅ Работодатель и вакансия уже в базе.")
 
         session.commit()
         print("\n✅ Синхронизация завершена успешно!")

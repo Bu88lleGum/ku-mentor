@@ -1,15 +1,58 @@
 services:
   db:
-    image: pgvector/pgvector:pg18  # Специальный образ Postgres с поддержкой векторов
+    image: pgvector/pgvector:pg16
     container_name: kumentor_db
-    ports:
-      - "5433:5432"                # Пробрасываем порт 5433 на твой компьютер
     environment:
       POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: qwerty     # Пароль, который ты указал в init_db.py
+      POSTGRES_PASSWORD: qwerty
       POSTGRES_DB: postgres
+    ports:
+      - "5436:5432"
     volumes:
-      - pgdata:/var/lib/postgresql # Данные будут храниться даже после выключения
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 3s
+      timeout: 3s
+      retries: 10
+
+  backend:
+    build: ./backend
+    container_name: kumentor_backend
+    environment:
+      - DATABASE_URL=postgresql+psycopg://postgres:qwerty@db:5432/postgres
+      - HF_HOME=/app/model_cache
+      - FASTEMBED_CACHE_PATH=/app/model_cache
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./backend:/app
+      - /app/venv
+      - /app/model_cache
+    command: >
+      sh -c "python -c 'from app.core.database import init_db; init_db()' && 
+             alembic upgrade head && 
+             python seed.py && 
+             uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload"
+    depends_on:
+      db:
+        condition: service_healthy
+
+  frontend:
+    build: ./frontend
+    container_name: kumentor_frontend
+    ports:
+      - "3000:3000"
+    environment:
+      - NEXT_PUBLIC_API_URL=http://localhost:8000
+      - INTERNAL_API_URL=http://backend:8000
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+      - /app/.next
+    command: sh -c "npm install typescript @types/react @types/node --save-dev && npm run dev"
+    depends_on:
+      - backend
 
 volumes:
   pgdata:
