@@ -1,6 +1,6 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from app.api.endpoints import recommendations_router, users_router, auth_router, skill_router, course_router, studentcource_router, searchhistory_router, vacancy_router, application_router
+from app.api.endpoints import recommendations_router, users_router, auth_router, skill_router, course_router, studentcource_router, searchhistory_router, vacancy_router, application_router, employer_router
 
 app = FastAPI(title="KU Mentor API")
 
@@ -22,7 +22,7 @@ app.include_router(vacancy_router, prefix="/vacancy", tags=["Vacancy"])
 app.include_router(application_router, prefix="/application", tags=["Application"])
 app.include_router(skill_router, prefix="/skill", tags=["Skill"])
 app.include_router(auth_router, prefix="/auth", tags=["Auth"])
-
+app.include_router(employer_router, prefix="/employer", tags=["Employer"])
 
 
 

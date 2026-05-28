@@ -29,6 +29,17 @@ export default function CreateVacancyPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+
+    // 1. Показываем окно предупреждения перед созданием вакансии
+    const isConfirmed = window.confirm(
+      "Вы уверены, что хотите опубликовать эту вакансию? Редактировать её после создания будет нельзя!"
+    );
+
+    // 2. Если пользователь нажал "Отмена" — прерываем отправку формы
+    if (!isConfirmed) {
+      return;
+    }
+
     setLoading(true);
 
     try {
@@ -49,6 +60,7 @@ export default function CreateVacancyPage() {
       }
     } catch (error) {
       console.error(error);
+      alert("Ошибка соединения с сервером");
     } finally {
       setLoading(false);
     }

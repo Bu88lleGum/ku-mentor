@@ -15,6 +15,7 @@ class StudentCourseUpdate(BaseModel):
 class StudentCourseRead(BaseModel):
     id: int
     course_id: int
+    course_name: str | None = None
     status: CourseStatus
     added_at: datetime
 

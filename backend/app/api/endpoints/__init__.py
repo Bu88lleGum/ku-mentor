@@ -7,4 +7,5 @@ from .studentcource import router as studentcource_router
 from .searchhistory import router as searchhistory_router
 from .vacancy import router as vacancy_router
 from .application import router as application_router
+from .employer import router as employer_router
 # Сюда будем добавлять новые роутеры по мере роста проекта

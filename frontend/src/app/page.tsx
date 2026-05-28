@@ -1,34 +1,38 @@
 'use client';
 
-
-
 import { useState, useEffect, useCallback } from 'react';
-import Link from "next/link"
-import LogoutButton from "@/src/app/components/logoutButton";
+import Link from "next/link";
 import { fetchUserProfile } from "./services/userService";
 import { useSearchParams } from 'next/navigation';
 import { motion } from "framer-motion";
+import HeaderPage from './components/header';
 
-
-// Типизация ответа от твоего FastAPI
-interface CourseRecommendation {
+// Универсальный интерфейс для результата поиска (и курс, и вакансия)
+interface SearchResult {
   id: number;
   title: string;
   description: string;
+  location?: string;        // Для вакансий
+  salary_range?: string;    // Для вакансий
+  is_internship?: boolean;  // Для вакансий
 }
 
-
-
 export default function Home() {
-
-  const searchParams = useSearchParams(); // Инициализируем хук
+  const searchParams = useSearchParams();
   const [warning, setWarning] = useState('');
-  const [isAuth, setIsAuth] = useState(false); //Авторизован
-  const [query, setQuery] = useState(''); //Запрос
-  const [results, setResults] = useState<CourseRecommendation[]>([]); //Результаты
-  const [loading, setLoading] = useState(false); //Загрузка
+  const [isAuth, setIsAuth] = useState(false);
+  const [query, setQuery] = useState('');
+  const [results, setResults] = useState<SearchResult[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [searchMode, setSearchMode] = useState<"courses" | "vacancies">("courses");
 
-const executeSearch = useCallback(async (searchQuery: string) => {
+  // Очищаем старые результаты при переключении режима поиска
+  useEffect(() => {
+    setResults([]);
+    setWarning('');
+  }, [searchMode]);
+
+  const executeSearch = useCallback(async (searchQuery: string, currentMode: "courses" | "vacancies") => {
     if (searchQuery.trim().length < 3) {
       setWarning('Запрос должен содержать минимум 3 буквы');
       return;
@@ -39,7 +43,11 @@ const executeSearch = useCallback(async (searchQuery: string) => {
 
     try {
       const token = localStorage.getItem("token");
-      const response = await fetch(`http://127.0.0.1:8000/recommend/?user_query=${encodeURIComponent(searchQuery)}`, {
+      
+      // Выбираем правильный эндпоинт бэкенда в зависимости от режима
+      const endpoint = currentMode === "courses" ? "/recommend/" : "/recommend/vacancies";
+      
+      const response = await fetch(`http://127.0.0.1:8000${endpoint}?user_query=${encodeURIComponent(searchQuery)}`, {
         method: 'GET',
         headers: {
           'Content-Type': 'application/json',
@@ -54,12 +62,14 @@ const executeSearch = useCallback(async (searchQuery: string) => {
 
       const data = await response.json();
       
-      // Логика обработки массива данных (твоя оригинальная)
+      // Разбор ответа (как массивов, так и объектов со свойством results)
       if (Array.isArray(data)) {
         setResults(data);
+      } else if (data.results && Array.isArray(data.results)) {
+        setResults(data.results);
       } else {
         const autoFoundArray = Object.values(data).find(val => Array.isArray(val));
-        setResults(Array.isArray(autoFoundArray) ? (autoFoundArray as CourseRecommendation[]) : []);
+        setResults(Array.isArray(autoFoundArray) ? (autoFoundArray as SearchResult[]) : []);
       }
     } catch (error) {
       console.error("Ошибка соединения:", error);
@@ -71,202 +81,127 @@ const executeSearch = useCallback(async (searchQuery: string) => {
 
   const handleSearch = async (e: React.FormEvent) => {
     e.preventDefault();
-  
-    // 1. Очищаем старое предупреждение
     setWarning('');
 
-    // 2. Проверка на минимальную длину (3 символа)
     if (query.trim().length < 3) {
       setWarning('Запрос должен содержать минимум 3 буквы');
-      setResults([]); // Очищаем старые результаты, чтобы они исчезли
+      setResults([]);
       return;
     }
     
-    setLoading(true);
-    
-    try {
-      const token = localStorage.getItem("token");
-
-      const response = await fetch(`http://127.0.0.1:8000/recommend/?user_query=${encodeURIComponent(query)}`, {
-        method: 'GET',
-        headers: {
-          'Content-Type': 'application/json',
-          ...(token ? { 'Authorization': `Bearer ${token}` } : {})
-        }
-        });
-      if (response.status === 401) {
-        setIsAuth(false);
-        return;
-      }
-
-      const data = await response.json();
-
-      console.log("ОТВЕТ БЭКЕНДА:", data);
-
-      //-----------Проверка данных-----------
-      if (Array.isArray(data)) {
-        setResults(data);
-      } else if (data.recommendations && Array.isArray(data.recommendations)) {
-        setResults(data.recommendations); // Попробуйте это имя, если оно в консоли
-      } else if (data.courses && Array.isArray(data.courses)) {
-        setResults(data.courses);
-      } else {
-        // Если ничего не подошло, попробуем взять первый найденный массив внутри объекта
-        const autoFoundArray = Object.values(data).find(val => Array.isArray(val));
-        setResults(Array.isArray(autoFoundArray) ? autoFoundArray : []);
-      }
-      // -------------------------------
-
-    } catch (error) {
-      setIsAuth(false)
-      console.error("Ошибка соединения:", error);
-      setResults([]);
-    } finally {
-      setLoading(false);
-    }
+    // Вызываем общую функцию поиска, передавая текущий режим
+    await executeSearch(query, searchMode);
   };
 
   // Проверка авторизации
-useEffect(() => {
-  const token = localStorage.getItem("token");
-  
-  const checkAuth = async () => {
-    if (!token){
-      return;
-    }
-    try {
-      // Проверяем реальность токена через запрос к профилю
-      await fetchUserProfile(); 
-      setIsAuth(true);
-    } catch (err) {
-      // Токен оказался невалидным или истек
-      localStorage.removeItem("token");
-      localStorage.removeItem("user");
-      setIsAuth(false);
+  useEffect(() => {
+    const token = localStorage.getItem("token");
+    
+    const checkAuth = async () => {
+      if (!token) return;
+      try {
+        await fetchUserProfile(); 
+        setIsAuth(true);
+      } catch (err) {
+        localStorage.removeItem("token");
+        localStorage.removeItem("user");
+        setIsAuth(false);
 
-      // Генерируем уведомление, которое поймает ToastProvider в layout.tsx
-      window.dispatchEvent(new CustomEvent("show-toast", { 
-        detail: "Сессия истекла. Пожалуйста, войдите в аккаунт снова." 
-      }));
-    }
-  };
+        window.dispatchEvent(new CustomEvent("show-toast", { 
+          detail: "Сессия истекла. Пожалуйста, войдите в аккаунт снова." 
+        }));
+      }
+    };
 
-  checkAuth();
-}, []);
+    checkAuth();
+  }, []);
 
-// 2. Логика подхвата запроса из URL (из профиля)
+  // Логика подхвата запроса из URL
   useEffect(() => {
     const queryFromUrl = searchParams.get('query');
-    if (queryFromUrl && isAuth) { // Запускаем только если пользователь авторизован
+    if (queryFromUrl && isAuth) {
       setQuery(queryFromUrl);
-      executeSearch(queryFromUrl); // Сразу запускаем поиск
+      executeSearch(queryFromUrl, searchMode);
     }
-  }, [searchParams, isAuth, executeSearch]); // Следим за изменением параметров URL и авторизацией
+  }, [searchParams, isAuth, executeSearch]);
   
-  const CourseSkeleton = () => (
-  <div className="bg-white p-8 rounded-3xl border border-slate-100 animate-pulse">
-    <div className="flex justify-between mb-4">
-      <div className="h-8 w-1/3 bg-slate-200 rounded-lg"></div>
-      <div className="h-6 w-16 bg-slate-100 rounded-full"></div>
+  const CardSkeleton = () => (
+    <div className="bg-white p-8 rounded-3xl border border-slate-100 animate-pulse mt-6">
+      <div className="flex justify-between mb-4">
+        <div className="h-8 w-1/3 bg-slate-200 rounded-lg"></div>
+        <div className="h-6 w-16 bg-slate-100 rounded-full"></div>
+      </div>
+      <div className="space-y-3">
+        <div className="h-4 w-full bg-slate-100 rounded"></div>
+        <div className="h-4 w-5/6 bg-slate-100 rounded"></div>
+      </div>
     </div>
-    <div className="space-y-3">
-      <div className="h-4 w-full bg-slate-100 rounded"></div>
-      <div className="h-4 w-5/6 bg-slate-100 rounded"></div>
-    </div>
-  </div>
-);
+  );
+
   return (
-    
     <div className="min-h-screen bg-slate-50 text-slate-900 font-sans">
-      {/* Хэдер на весь экран с синим фоном */}
-<header className="relative pt-16 pb-20 bg-gradient-to-br from-[#A9F4FF] via-[#05A4BA] to-[#1D869E]">    
-        {/* Кнопки в верхнем правом углу */}
-        <div className="absolute top-6 right-6 flex gap-4">
-        {isAuth ? (
-          <>
-            {/* Если авторизован — показываем кнопку Профиля */}
-            <LogoutButton></LogoutButton>
-
-            <Link 
-              href="/profile" 
-              className="bg-white text-[#05A4BA] px-5 py-2 rounded-xl font-bold shadow-lg hover:bg-[#1D869E] hover:text-white transition-all"
-            >Мой профиль</Link>
-          </>
-        
-        ) : (
-          /* Если НЕ авторизован — показываем кнопку Войти */
-          <>
-          <Link 
-            href="/login" 
-            className="bg-[#2A8DA4] text-white px-5 py-2 rounded-xl font-bold shadow-lg hover:bg-[#1D869E] transition-all"
-          >
-            Войти
-          </Link>
-          <Link 
-            href="/register" 
-            className="bg-white text-[#1D869E] px-5 py-2 rounded-xl font-bold shadow-lg hover:bg-[#2A8DA4] hover:text-white transition-all"
-          >
-            Зарегестрироваться
-          </Link>
-          </>
-        )}
-        </div>
-
-        {/* Центральная часть хэдера */}
+      <HeaderPage 
+        searchMode={searchMode} 
+        setSearchMode={setSearchMode} 
+        isAuth={isAuth} 
+      />
+      
+      {/* Хэдер с градиентом */}
+      <header className="relative pt-16 pb-20 bg-gradient-to-br from-[#A9F4FF] via-[#05A4BA] to-[#1D869E]">
         <div className="text-center">
-          <h1 className="text-6xl font-extrabold text-white my-24">KU Mentor</h1>
-          <p className="text-xl text-[#A9F4FF] max-w-2xl mx-auto">Твой персональный ИИ-секретарь: найди курс по смыслу, а не по буквам.</p>
+          <h1 className="text-6xl font-extrabold text-white my-24 tracking-tight">KU Mentor</h1>
+          <p className="text-xl text-[#A9F4FF] max-w-2xl mx-auto px-4">
+            {searchMode === "courses" 
+              ? "Твой персональный ИИ-секретарь: найди курс по смыслу, а не по буквам."
+              : "Найди идеальное место работы: умный поиск вакансий и стажировок."
+            }
+          </p>
         </div>
       </header>
 
-      {/* Результаты */}
+      {/* Поисковый контейнер */}
       <main className="max-w-4xl mx-auto px-4">
-        {loading && (
-          <div className="space-y-6 mt-10">
-            {[1, 2, 3].map((i) => <CourseSkeleton key={i} />)}
-          </div>
-        )}
         <div className="bg-white p-6 rounded-2xl shadow-xl border border-gray-100 -mt-10 relative z-10">
     
-          {/* Сообщение для неавторизованных пользователей */}
           {!isAuth && (
             <div className="mb-4 p-3 bg-amber-50 border border-amber-100 rounded-xl flex items-center gap-3">
               <span className="text-amber-600 text-lg">🔒</span>
               <p className="text-amber-800 text-sm font-medium">Пожалуйста, <Link href="/login" className="underline font-bold hover:text-amber-900">войдите в систему</Link>
-                , чтобы воспользоваться ИИ-поиском курсов.
+                , чтобы воспользоваться ИИ-поиском {searchMode === "courses" ? "курсов" : "вакансий"}.
               </p>
             </div>
           )}
 
-          {/* Форма поиска */}
           <form onSubmit={handleSearch} className="relative">
-            <input type="text"
-              // Блокируем поле, если нет авторизации
+            <input 
+              type="text"
               disabled={!isAuth}
               className={`w-full p-6 text-lg rounded-2xl shadow-xl transition-all
                 ${!isAuth 
                   ? "bg-gray-100 cursor-not-allowed text-gray-400 placeholder-gray-400" 
-                  : "bg-white text-black outline-none focus:ring-4 focus:ring-blue-300 shadow-blue-100/50"
-              }`}
-              placeholder={isAuth ? "Опиши свои интересы..." : "Поиск доступен только после входа"}
+                  : "bg-white text-black outline-none focus:ring-4 focus:ring-cyan-100 shadow-blue-100/50"
+                }`}
+              placeholder={isAuth 
+                ? (searchMode === "courses" ? "Опиши, чему ты хочешь научиться..." : "Какую вакансию или стажировку ты ищешь?") 
+                : "Поиск доступен только после входа"
+              }
               value={query}
               onChange={(e) => setQuery(e.target.value)}
-              />
+            />
     
             <button 
               type="submit"
-              // Блокируем кнопку, если нет авторизации или идет загрузка
               disabled={!isAuth || loading}
               className={`absolute right-3 top-3 bottom-3 px-8 font-bold rounded-xl transition-all 
                 ${!isAuth 
                   ? "bg-gray-200 text-gray-400 cursor-not-allowed" 
                   : "bg-[#05A4BA] hover:bg-[#1D869E] text-white shadow-lg active:scale-95 disabled:opacity-50"
                 }`}
-                >
+            >
               {loading ? '...' : 'Найти'}
             </button>
           </form>
-          {/* Блок предупреждения */}
+
           {warning && (
             <div className="mt-4 p-3 bg-red-50 border border-red-100 rounded-xl flex items-center gap-2 animate-pulse">
               <span className="text-red-500">⚠️</span>
@@ -274,66 +209,88 @@ useEffect(() => {
             </div>
           )}
         </div>
-  
-{/* Результаты */}
-<div className="max-w-4xl mx-auto px-4 mt-10 pb-20">
-  {results && results.length > 0 ? (
-    <div className="relative space-y-6">
-      {results.map((course: any, i: number) => (
-        <div
-          key={`${course.id}-${course.title}-${i}`}
-          className="bg-white p-8 rounded-3xl border border-slate-100 shadow-sm hover:shadow-xl transition-all hover:border-l-4 hover:border-l-[#05A4BA] group"
-        >
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.3, delay: i * 0.1 }}
-          >
-            <div className="flex justify-between items-start mb-4">
-              <h3 className="text-2xl font-bold text-slate-800 group-hover:text-[#1D869E] transition-colors">
-                {course.title}
-              </h3>
-              <span className="bg-[#A9F4FF] text-[#1D869E] text-xs font-bold px-3 py-1 rounded-full uppercase">
-                Курс
-              </span>
-            </div>
-            
-            <p className="text-[#2A8DA4] leading-relaxed text-lg mb-8">
-              {course.description}
-            </p>
 
-            {/* Кнопка перехода */}
-            <div className="flex justify-end">
-              <Link 
-                href={`/course/${course.id}`} // Динамический путь на основе ID
-                className="flex items-center gap-2 px-6 py-3 bg-[#05A4BA] text-white font-bold rounded-2xl hover:bg-[#1D869E] active:scale-95 transition-all shadow-lg shadow-cyan-100"
-              >
-                Подробнее
-                <svg 
-                  className="w-5 h-5 transition-transform group-hover:translate-x-1" 
-                  fill="none" 
-                  viewBox="0 0 24 24" 
-                  stroke="currentColor"
+        {/* Скелетоны при загрузке */}
+        {loading && (
+          <div className="space-y-6 mt-4">
+            {[1, 2, 3].map((i) => <CardSkeleton key={i} />)}
+          </div>
+        )}
+        
+        {/* Блок Вывода Результатов */}
+        <div className="mt-10 pb-20">
+          {results && results.length > 0 ? (
+            <div className="relative space-y-6">
+              {results.map((item: SearchResult, i: number) => (
+                <div
+                  key={`${item.id}-${i}`}
+                  className="bg-white p-8 rounded-3xl border border-slate-100 shadow-sm hover:shadow-xl transition-all hover:border-l-4 hover:border-l-[#05A4BA] group"
                 >
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7l5 5m0 0l-5 5m5-5H6" />
-                </svg>
-              </Link>
+                  <motion.div
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ duration: 0.3, delay: i * 0.1 }}
+                  >
+                    <div className="flex justify-between items-start mb-4">
+                      <div>
+                        <h3 className="text-2xl font-bold text-slate-800 group-hover:text-[#1D869E] transition-colors">
+                          {item.title}
+                        </h3>
+                        {/* Дополнительные мета-данные для вакансий */}
+                        {searchMode === "vacancies" && (item.location || item.salary_range) && (
+                          <div className="flex gap-4 text-sm text-slate-400 font-semibold mt-1">
+                            {item.location && <span>📍 {item.location}</span>}
+                            {item.salary_range && <span>💰 {item.salary_range}</span>}
+                          </div>
+                        )}
+                      </div>
+                      
+                      <span className={`text-xs font-bold px-3 py-1 rounded-full uppercase ${
+                        searchMode === "courses" 
+                          ? "bg-[#A9F4FF] text-[#1D869E]" 
+                          : (item.is_internship ? "bg-amber-100 text-amber-700" : "bg-emerald-100 text-emerald-700")
+                      }`}>
+                        {searchMode === "courses" 
+                          ? "Курс" 
+                          : (item.is_internship ? "Стажировка" : "Вакансия")
+                        }
+                      </span>
+                    </div>
+                    
+                    <p className="text-[#2A8DA4] leading-relaxed text-lg mb-8 line-clamp-3">
+                      {item.description}
+                    </p>
+
+                    <div className="flex justify-end">
+                      <Link 
+                        // Динамический переход: либо на страницу курса, либо на вакансию
+                        href={searchMode === "courses" ? `/course/${item.id}` : `/vacancies/${item.id}`}
+                        className="flex items-center gap-2 px-6 py-3 bg-[#05A4BA] text-white font-bold rounded-2xl hover:bg-[#1D869E] active:scale-95 transition-all shadow-lg shadow-cyan-100"
+                      >
+                        Подробнее
+                        <svg 
+                          className="w-5 h-5 transition-transform group-hover:translate-x-1" 
+                          fill="none" 
+                          viewBox="0 0 24 24" 
+                          stroke="currentColor"
+                        >
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7l5 5m0 0l-5 5m5-5H6" />
+                        </svg>
+                      </Link>
+                    </div>
+                  </motion.div>
+                </div>
+              ))}
             </div>
-          </motion.div>
+          ) : (
+            !loading && query && (
+              <div className="text-center py-20 bg-white rounded-3xl border-2 border-dashed border-[#A9F4FF]">
+                <p className="text-[#05A4BA] text-xl font-medium">Ничего не найдено.</p>
+              </div>
+            )
+          )}
         </div>
-      ))}
-    </div>
-  ) : (
-    !loading && query && (
-      <div className="text-center py-20 bg-white rounded-3xl border-2 border-dashed border-[#A9F4FF]">
-        <p className="text-[#05A4BA] text-xl font-medium">Ничего не найдено.</p>
-      </div>
-    )
-  )}
-</div>
       </main>
     </div>
   );
 }
-
-

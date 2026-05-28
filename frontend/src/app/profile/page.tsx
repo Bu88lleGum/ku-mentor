@@ -12,29 +12,40 @@ export default function ProfilePage() {
   const router = useRouter();
 
   useEffect(() => {
-  const getRole = async () => {
-    try {
-      const user = await fetchUserProfile(); 
-      
-      // 1. Пытаемся взять из localStorage (так как в user поле пустое)
-      let userRole = localStorage.getItem("role");
+    const getRole = async () => {
+      try {
+        // Получаем чистый актуальный профиль с бэкенда
+        const user = await fetchUserProfile(); 
+        
+        // Базовое значение на случай непредвиденных обстоятельств
+        let detectedRole = 'STUDENT';
 
-      // 2. Если в localStorage пусто, пробуем "угадать" по данным профиля
-      if (!userRole) {
-        // Если student_profile пришел как null, скорее всего это EMPLOYER
-        // Но это очень ненадежно!
-        userRole = user.student_profile ? 'STUDENT' : 'EMPLOYER';
+        if (user) {
+          // 1. Проверяем поле 'role' из пришедшего JSON ("student" или "employer")
+          if (user.role) {
+            detectedRole = user.role.toUpperCase();
+          } 
+          // 2. Запасной вариант (твоя угадайка): если бэкенд не прислал строку role
+          else if (user.student_profile !== null && user.student_profile !== undefined) {
+            detectedRole = 'STUDENT';
+          } else if (user.employer_profile !== null && user.employer_profile !== undefined) {
+            detectedRole = 'EMPLOYER';
+          }
+        }
+
+        // Устанавливаем проверенную роль
+        setRole(detectedRole);
+
+      } catch (err) {
+        console.error("Ошибка при получении профиля:", err);
+        router.push('/login');
+      } finally {
+        setLoading(false);
       }
-      
-      setRole(userRole.toUpperCase());
-    } catch (err) {
-      router.push('/login');
-    } finally {
-      setLoading(false);
-    }
-  };
-  getRole();
-}, []);
+    };
+    
+    getRole();
+  }, []);
 
   if (loading) {
     return (
@@ -44,11 +55,11 @@ export default function ProfilePage() {
     );
   }
 
-  // Теперь сравниваем максимально надежно
+  // Строгое сравнение с ответом бэкенда в UPPERCASE
   if (role === 'EMPLOYER') {
     return <EmployerProfile />;
   }
 
-  // Если роль 'STUDENT' или любая другая
+  // Во всех остальных случаях (STUDENT или если что-то пошло не так)
   return <StudentProfile />;
 }
