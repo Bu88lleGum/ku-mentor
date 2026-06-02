@@ -288,7 +288,7 @@ export default function StudentProfile() {
                 return (
                   <div 
                     key={app.id} 
-                    onClick={() => router.push(`/vacancies/${app.vacancy_id}`)}
+                    onClick={() => router.push(`/vacancies/${app.vacancy_id}/applications/${app.id}`)}
                     className="flex flex-col sm:flex-row justify-between items-start sm:items-center p-5 bg-slate-50/60 rounded-2xl border border-slate-100 hover:bg-slate-50 transition-all cursor-pointer group gap-4"
                   >
                     <div className="space-y-1">

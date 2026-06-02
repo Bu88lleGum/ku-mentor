@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { useRouter, useParams } from "next/navigation";
+import { fetchUserProfile } from "@/src/app/services/userService";
 
 interface StudentProfile {
   username: string;
@@ -18,14 +19,13 @@ interface DetailedApplication {
   status: string;
   match_score: number | null;
   created_at: string;
-  student?: StudentProfile; // Данные студента, подгруженные бэкендом
+  student?: StudentProfile; 
 }
 
 export default function ApplicationDetailPage() {
   const router = useRouter();
   const params = useParams();
   
-  // Достаем параметры из URL согласно новой безопасной структуре слагов
   const vacancyId = params.id;
   const applicationId = params.applicationId;
 
@@ -33,14 +33,30 @@ export default function ApplicationDetailPage() {
   const [loading, setLoading] = useState<boolean>(true);
   const [submitting, setSubmitting] = useState<boolean>(false);
   const [message, setMessage] = useState<string>("");
+  
+  // Роль теперь храним строго в UPPERCASE ('EMPLOYER' | 'STUDENT'), как на странице профиля
+  const [userRole, setUserRole] = useState<"EMPLOYER" | "STUDENT" | null>(null);
 
   useEffect(() => {
-    const fetchApplicationDetails = async () => {
+    const initPage = async () => {
       try {
         setLoading(true);
         const token = localStorage.getItem("token");
-        
-        // Запрос на получение конкретного отклика (эндпоинт нужно адаптировать под твой бэкенд)
+
+        // 1. Надежно определяем роль пользователя через бэкенд-сервис
+        const user = await fetchUserProfile();
+        let detectedRole: "EMPLOYER" | "STUDENT" = "STUDENT";
+
+        if (user) {
+          if (user.role) {
+            detectedRole = user.role.toUpperCase() as "EMPLOYER" | "STUDENT";
+          } else if (user.employer_profile !== null && user.employer_profile !== undefined) {
+            detectedRole = "EMPLOYER";
+          }
+        }
+        setUserRole(detectedRole);
+
+        // 2. Загружаем данные самого отклика
         const response = await fetch(`http://127.0.0.1:8000/application/${applicationId}`, {
           headers: { "Authorization": `Bearer ${token}` }
         });
@@ -52,19 +68,23 @@ export default function ApplicationDetailPage() {
           console.error("Не удалось загрузить детали отклика");
         }
       } catch (error) {
-        console.error("Ошибка при запросе отклика:", error);
+        console.error("Ошибка при инициализации страницы:", error);
       } finally {
         setLoading(false);
       }
     };
 
     if (applicationId) {
-      fetchApplicationDetails();
+      initPage();
     }
   }, [applicationId]);
 
-  // Функция изменения статуса (ACCEPTED / REJECTED)
   const handleUpdateStatus = async (newStatus: "ACCEPTED" | "REJECTED") => {
+    if (userRole !== "EMPLOYER") {
+      setMessage("Ошибка: только работодатель может менять статус заявки.");
+      return;
+    }
+
     try {
       setSubmitting(true);
       setMessage("");
@@ -94,19 +114,22 @@ export default function ApplicationDetailPage() {
   };
 
   const getStatusBadgeClass = (status: string) => {
-    switch (status?.toUpperCase()) {
-      case "ACCEPTED": return "bg-emerald-50 text-emerald-700 border-emerald-200";
-      case "REJECTED": return "bg-rose-50 text-rose-700 border-rose-200";
-      default: return "bg-amber-50 text-amber-700 border-amber-200";
-    }
+    const s = status?.toUpperCase();
+    if (s?.includes("ACCEPT")) return "bg-emerald-50 text-emerald-700 border-emerald-200";
+    if (s?.includes("REJECT")) return "bg-rose-50 text-rose-700 border-rose-200";
+    return "bg-amber-50 text-amber-700 border-amber-200";
   };
 
   const getStatusLabel = (status: string) => {
-    switch (status?.toUpperCase()) {
-      case "ACCEPTED": return "Принят";
-      case "REJECTED": return "Отказ";
-      default: return "На рассмотрении";
-    }
+    const s = status?.toUpperCase();
+    if (s?.includes("ACCEPT")) return "Принят";
+    if (s?.includes("REJECT")) return "Отказ";
+    return "На рассмотрении";
+  };
+
+  const isPendingStatus = (status: string) => {
+    const s = status?.toUpperCase() || "";
+    return s === "PENDING" || s.includes("PEND") || (!s.includes("ACCEPT") && !s.includes("REJECT"));
   };
 
   if (loading) return (
@@ -135,7 +158,7 @@ export default function ApplicationDetailPage() {
             <line x1="19" y1="12" x2="5" y2="12"></line>
             <polyline points="12 19 5 12 12 5"></polyline>
           </svg>
-          Назад к профилю
+          Назад
         </button>
 
         {/* Главная карточка: Студент */}
@@ -146,12 +169,14 @@ export default function ApplicationDetailPage() {
                 {getStatusLabel(application.status)}
               </span>
               <h1 className="text-2xl font-black text-slate-900 mt-2">
-                {application.student?.username || "Кандидат"}
+                {userRole === "STUDENT" ? "Ваша заявка" : (application.student?.username || "Кандидат")}
               </h1>
-              <p className="text-sm text-slate-400 font-medium">{application.student?.email}</p>
+              {userRole === "EMPLOYER" && (
+                <p className="text-sm text-slate-400 font-medium">{application.student?.email}</p>
+              )}
             </div>
 
-            {application.match_score !== null && (
+            {userRole === "EMPLOYER" && application.match_score !== null && (
               <div className="bg-[#A9F4FF]/20 border border-[#A9F4FF]/60 p-4 rounded-2xl text-right shrink-0">
                 <span className="text-[10px] uppercase tracking-wider font-black text-slate-400 block">AI Совпадение</span>
                 <span className="text-xl font-black text-[#05A4BA]">{Math.round(application.match_score * 100)}%</span>
@@ -173,7 +198,9 @@ export default function ApplicationDetailPage() {
 
         {/* Карточка: Интересы и навыки студента */}
         <div className="bg-white border border-slate-100 rounded-3xl p-8 shadow-sm">
-          <h3 className="text-lg font-bold text-slate-900 mb-4">Навыки и интересы кандидата</h3>
+          <h3 className="text-lg font-bold text-slate-900 mb-4">
+            {userRole === "STUDENT" ? "Ваши навыки и интересы" : "Навыки и интересы кандидата"}
+          </h3>
           <div className="flex flex-wrap gap-2">
             {application.student?.interests && application.student.interests.length > 0 ? (
               application.student.interests.map((interest, idx) => (
@@ -182,7 +209,7 @@ export default function ApplicationDetailPage() {
                 </span>
               ))
             ) : (
-              <p className="text-sm text-slate-400 italic">Студент не указал свои интересы.</p>
+              <p className="text-sm text-slate-400 italic">Навыки не указаны.</p>
             )}
           </div>
         </div>
@@ -196,13 +223,13 @@ export default function ApplicationDetailPage() {
             </p>
           ) : (
             <p className="text-sm text-slate-400 italic bg-slate-50 p-4 rounded-2xl border border-dashed border-slate-200 text-center">
-              Кандидат не прикрепил сопроводительное письмо.
+              Сопроводительное письмо отсутствует.
             </p>
           )}
         </div>
 
-        {/* Панель действий (Только если статус PENDING / На рассмотрении) */}
-        {application.status.toUpperCase() === "PENDING" && (
+        {/* 🔐 ПАНЕЛЬ ДЕЙСТВИЙ РАБОТОДАТЕЛЯ: Принять / Отклонить */}
+        {userRole === "EMPLOYER" && isPendingStatus(application.status) && (
           <div className="bg-white border border-slate-100 rounded-3xl p-6 shadow-sm flex flex-col sm:flex-row gap-4 items-center justify-between">
             <div className="text-center sm:text-left">
               <h4 className="font-bold text-slate-900">Примите решение по отклику</h4>
@@ -228,7 +255,32 @@ export default function ApplicationDetailPage() {
           </div>
         )}
 
-        {/* Системные уведомления о сохранении решения */}
+        {/* 🎓 ПАНЕЛЬ ДЕЙСТВИЙ СТУДЕНТА: Статус + Кнопка перехода в свой профиль */}
+        {userRole === "STUDENT" && (
+          <div className="bg-white border border-slate-100 rounded-3xl p-6 shadow-sm flex flex-col sm:flex-row gap-4 items-center justify-between">
+            <div className="text-center sm:text-left">
+              {isPendingStatus(application.status) ? (
+                <>
+                  <h4 className="font-bold text-amber-800">⏳ Ожидание ответа</h4>
+                  <p className="text-xs text-amber-600/80 font-medium">Ваша заявка находится на рассмотрении у работодателя.</p>
+                </>
+              ) : (
+                <>
+                  <h4 className="font-bold text-slate-900">Решение принято</h4>
+                  <p className="text-xs text-slate-400 font-medium">Текущий статус вашей заявки: {getStatusLabel(application.status)}</p>
+                </>
+              )}
+            </div>
+
+            <button
+              onClick={() => router.push("/profile")} // Путь к странице профиля
+              className="w-full sm:w-auto text-center px-6 py-3 bg-slate-100 text-slate-700 hover:bg-slate-200 font-bold rounded-2xl text-sm transition-all active:scale-95 layout-button"
+            >
+              Перейти в профиль
+            </button>
+          </div>
+        )}
+
         {message && (
           <div className={`p-4 rounded-2xl border text-center text-sm font-bold ${
             message.includes("успешно") || message.includes("Принят")
