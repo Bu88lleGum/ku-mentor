@@ -18,6 +18,9 @@ from .vacancy import Vacancy
 from .search import SearchHistory
 from .application import Application
 
+from .favourite_vacancy import FavouriteVacancy
+from .favourite_course import FavouriteCourse
+
 # Это поможет Alembic найти метаданные всех таблиц
 from sqlmodel import SQLModel
 metadata = SQLModel.metadata
