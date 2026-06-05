@@ -6,7 +6,7 @@ WORKDIR /app
 COPY package.json package-lock.json* ./
 
 # Ставим чистые зависимости
-RUN npm install --production
+RUN npm install
 
 # Копируем остальной код
 COPY . .

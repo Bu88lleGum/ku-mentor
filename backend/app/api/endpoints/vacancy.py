@@ -8,6 +8,8 @@ from app.models import EmployerProfile, Vacancy, Skill, VacancySkill
 from app.services.ai_engine import ai_service
 from typing import List
 from sqlmodel import select, Session
+from app.schemas.favourite import FavouriteToggleResponse
+from app.crud.favourite_vacancy import toggle_favourite_vacancy, remove_favourite_vacancy
 
 # Инициализируем роутер для обработки всех запросов, связанных с вакансиями (Vacancies)
 router = APIRouter()
@@ -167,3 +169,50 @@ def remove_vacancy(
 
     # При статусе 204 возвращается пустой ответ (None) — тело ответа отсутствует по спецификации HTTP
     return None
+
+
+@router.post("/{vacancy_id}/favourite", response_model=FavouriteToggleResponse)
+def toggle_vacancy(
+    vacancy_id: int, 
+    session: Session = Depends(get_session),
+    current_user_id: int = Depends(get_current_user_id)
+):
+    """
+    ЭНДПОИНТ: Добавление вакансии в избранное или её удаление (Toggle).
+    Доступно любому авторизованному пользователю.
+    """
+    # 1. Проверяем, существует ли вообще вакансия, которую хотят лайкнуть
+    db_vacancy = session.get(Vacancy, vacancy_id)
+    if not db_vacancy:
+        raise HTTPException(status_code=404, detail="Вакансия не найдена")
+
+    # 2. Передаем управление в CRUD-метод, используя залогиненный ID пользователя
+    is_added = toggle_favourite_vacancy(session, user_id=current_user_id, vacancy_id=vacancy_id)
+
+    # 3. Формируем ответ согласно Pydantic-схеме FavouriteToggleResponse
+    if is_added:
+        return {"is_favourited": True, "message": "Вакансия добавлена в избранное"}
+    return {"is_favourited": False, "message": "Вакансия удалена из избранного"}
+
+@router.delete("/{vacancy_id}/favourite", status_code=204)
+def delete_vacancy_from_favourite(
+    vacancy_id: int,
+    session: Session = Depends(get_session),
+    current_user_id: int = Depends(get_current_user_id)
+):
+    """
+    ЭНДПОИНТ: Явное удаление вакансии из избранного.
+    Возвращает статус 204 No Content в случае успешного удаления.
+    """
+    # Вызываем CRUD-метод
+    success = remove_favourite_vacancy(session, user_id=current_user_id, vacancy_id=vacancy_id)
+    
+    # Если на фронтенде пытаются удалить то, чего и так нет в избранном
+    if not success:
+        raise HTTPException(
+            status_code=404, 
+            detail="Вакансия не найдена в вашем списке избранного"
+        )
+        
+    # Статус 204 автоматически не возвращает никакого тела ответа
+    return

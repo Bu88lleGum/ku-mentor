@@ -9,6 +9,11 @@ from app.core.security import get_current_user_id, create_access_token
 from app.services.ai_engine import ai_service
 from app.crud.user import delete_user_by_id
 from app.schemas.user import UserRegisterResponse
+from app.schemas.course import CourseRead
+from app.schemas.vacancy import VacancyRead
+from app.crud.favourite_course import get_user_favourite_courses
+from app.crud.favourite_vacancy import get_user_favourite_vacancies
+from typing import List
 
 # Инициализируем роутер для управления аккаунтами, авторизацией и профилями
 router = APIRouter()
@@ -186,3 +191,39 @@ def delete_user(
         
     # Возвращаем статус 204 No Content. Спецификация HTTP требует, чтобы у 204 ответов отсутствовало тело (body)
     return None
+
+
+@router.get("/me/favourite-courses", response_model=List[CourseRead])
+def get_my_favourite_courses(
+    skip: int = 0, 
+    limit: int = 20, 
+    session: Session = Depends(get_session), 
+    current_user_id: int = Depends(get_current_user_id)
+):
+    """
+    ЭНДПОИНТ: Получение списка всех обучающих курсов, которые текущий пользователь добавил в избранное.
+    """
+    return get_user_favourite_courses(
+        session=session, 
+        user_id=current_user_id, 
+        skip=skip, 
+        limit=limit
+    )
+
+
+@router.get("/me/favourite-vacancies", response_model=List[VacancyRead])
+def get_my_favourite_vacancies(
+    skip: int = 0, 
+    limit: int = 20, 
+    session: Session = Depends(get_session), 
+    current_user_id: int = Depends(get_current_user_id)
+):
+    """
+    ЭНДПОИНТ: Получение списка всех вакансий, которые текущий пользователь сохранил в закладки.
+    """
+    return get_user_favourite_vacancies(
+        session=session, 
+        user_id=current_user_id, 
+        skip=skip, 
+        limit=limit
+    )
