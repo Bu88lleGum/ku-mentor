@@ -4,14 +4,11 @@ import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
 import LogoutButton from "@/src/app/components/logoutButton"; // Проверь этот путь импорта!
 
-
 interface HeaderProps {
   searchMode: "courses" | "vacancies"; // Текущий режим глобального поиска (строгий литеральный тип)
   setSearchMode: (mode: "courses" | "vacancies") => void; // Колбэк-функция для изменения режима в стейте родителя
   isAuth: boolean; // Статус авторизации пользователя (залогинен/гость)
 }
-
-
 
 export default function HeaderPage({ searchMode, setSearchMode, isAuth }: HeaderProps) {
   const router = useRouter(); // Навигационный хук Next.js для программного редиректа (router.push)
@@ -51,10 +48,32 @@ export default function HeaderPage({ searchMode, setSearchMode, isAuth }: Header
           </div>
         </div>
 
-        {/* ПРАВАЯ ЧАСТЬ: Логика авторизации, перенесенная со страницы */}
+        {/* ПРАВАЯ ЧАСТЬ: Логика авторизации и навигации */}
         <div className="flex items-center gap-3">
           {isAuth ? (
             <>
+              {/* КНОПКА «ИЗБРАННОЕ»: Появляется только у залогиненных юзеров */}
+              <button
+                onClick={() => router.push("/favourites")}
+                className="p-2.5 bg-slate-50 text-slate-400 border border-slate-100 rounded-xl hover:text-red-500 hover:bg-red-50 hover:border-red-100 active:scale-[0.95] transition-all flex items-center justify-center group"
+                title="Избранное"
+              >
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  strokeWidth={2}
+                  stroke="currentColor"
+                  className="w-4 h-4 transition-transform group-hover:scale-110"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    d="M21 8.25c0-2.485-2.099-4.5-4.688-4.5-1.935 0-3.597 1.126-4.312 2.733-.715-1.607-2.377-2.733-4.313-2.733C5.1 3.75 3 5.765 3 8.25c0 7.22 9 12 9 12s9-4.78 9-12Z"
+                  />
+                </svg>
+              </button>
+
               {/* Если авторизован — рендерим LogoutButton и ссылку в профиль */}
               <LogoutButton />
               

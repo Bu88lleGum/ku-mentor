@@ -26,6 +26,12 @@ export default function VacancyPage() {
   const [loading, setLoading] = useState(true);
   const [isOwner, setIsOwner] = useState(false); 
   const [hasApplied, setHasApplied] = useState(false); 
+  
+  // Состояния для избранного
+  const [isFavourite, setIsFavourite] = useState(false);
+  const [favLoading, setFavLoading] = useState(false);
+
+  const BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
 
   useEffect(() => {
     const fetchVacancy = async () => {
@@ -35,8 +41,10 @@ export default function VacancyPage() {
         setLoading(true);
         const token = localStorage.getItem("token");
 
-        // 1. Загружаем данные вакансии
-        const response = await fetch(`http://127.0.0.1:8000/vacancy/${id}`);
+        // 1. Загружаем данные вакансии через прокси
+        // const response = await fetch(`/api/vacancy/${id}`);
+        const response = await fetch(`${BASE_URL}/vacancy/${id}`);
+
         
         if (!response.ok) {
           setVacancy(null);
@@ -46,15 +54,12 @@ export default function VacancyPage() {
         const data: Vacancy = await response.json();
         setVacancy(data);
 
-        // ==========================================
-        // БЕЗОПАСНЫЙ КОД ПРОВЕРКИ ЮЗЕРА:
-        // ==========================================
+        // Проверка владельца вакансии
         const savedUser = localStorage.getItem("user");
         if (savedUser && data) {
           try {
             if (savedUser.startsWith("{")) {
               const user = JSON.parse(savedUser);
-              
               if (user.role === "employer" && user.id === data.employer_id) {
                 setIsOwner(true); 
               } else {
@@ -67,9 +72,11 @@ export default function VacancyPage() {
           }
         }
 
-        // 2. Проверяем наличие отклика
         if (token && data) {
-          const myAppsRes = await fetch(`http://127.0.0.1:8000/application/my`, {
+          // 2. Проверяем наличие отклика
+          // const myAppsRes = await fetch(`/api/application/my`, {
+          const myAppsRes = await fetch(`${BASE_URL}/applications/my`, {
+
             headers: { 'Authorization': `Bearer ${token}` }
           });
           
@@ -79,6 +86,21 @@ export default function VacancyPage() {
               ? myApplications.some((app: any) => app.vacancy_id === data.id)
               : false;
             setHasApplied(alreadyApplied);
+          }
+
+          // 3. Проверяем, находится ли вакансия в избранном
+          // const favsRes = await fetch(`/api/users/me/favourite-vacancies`, {
+          const favsRes = await fetch(`${BASE_URL}/users/me/favourite-vacancies`, {
+
+            headers: { 'Authorization': `Bearer ${token}` }
+          });
+
+          if (favsRes.ok) {
+            const favVacancies = await favsRes.json();
+            const alreadyFav = Array.isArray(favVacancies)
+              ? favVacancies.some((fav: any) => fav.id === data.id)
+              : false;
+            setIsFavourite(alreadyFav);
           }
         }
 
@@ -92,6 +114,41 @@ export default function VacancyPage() {
 
     fetchVacancy();
   }, [id]);
+
+  // Хэндлер для добавления / удаления из избранного
+  const toggleFavourite = async () => {
+    const token = localStorage.getItem("token");
+    if (!token) {
+      router.push("/login");
+      return;
+    }
+
+    if (!vacancy || favLoading) return;
+
+    try {
+      setFavLoading(true);
+      
+      // Отправляем POST на эндпоинт переключения (добавить/удалить)
+      // const res = await fetch(`/api/vacancies/${vacancy.id}/favourite`, {
+        const res = await fetch(`${BASE_URL}/vacancy/${vacancy.id}/favourite`, {
+
+        method: "POST",
+        headers: {
+          "Authorization": `Bearer ${token}`,
+          "Content-Type": "application/json"
+        }
+      });
+
+      if (res.ok) {
+        // Инвертируем состояние на фронте в случае успеха
+        setIsFavourite(!isFavourite);
+      }
+    } catch (error) {
+      console.error("Ошибка при изменении статуса избранного:", error);
+    } finally {
+      setFavLoading(false);
+    }
+  };
 
   // Скелетон на время загрузки
   if (loading) return (
@@ -143,23 +200,58 @@ export default function VacancyPage() {
           <div className="absolute top-0 left-0 right-0 h-2 bg-gradient-to-r from-[#A9F4FF] to-[#05A4BA]" />
 
           {/* Шапка вакансии */}
-          <div className="flex flex-wrap justify-between items-start gap-4 mb-6">
+          <div className="flex justify-between items-center gap-4 mb-6">
             <span className={`text-xs font-black px-3 py-1 rounded-full uppercase tracking-wider ${
               vacancy.is_internship ? "bg-amber-100 text-amber-700" : "bg-emerald-100 text-emerald-700"
             }`}>
               {vacancy.is_internship ? "Стажировка" : "Вакансия"}
             </span>
             
-            <p className="text-xs text-slate-400 font-bold">
-              Опубликовано: {new Date(vacancy.created_at).toLocaleDateString()}
-            </p>
+            <div className="flex items-center gap-4">
+              <p className="text-xs text-slate-400 font-bold hidden sm:block">
+                Опубликовано: {new Date(vacancy.created_at).toLocaleDateString()}
+              </p>
+
+              {/* КНОПКА ФАВОРИТОВ (ЗАКЛАДКА) */}
+              {!isOwner && (
+                <button
+                  type="button"
+                  onClick={toggleFavourite}
+                  disabled={favLoading}
+                  className={`p-2.5 rounded-xl border transition-all duration-200 flex items-center justify-center ${
+                    isFavourite 
+                      ? "bg-red-50 border-red-200 text-red-500 hover:bg-red-100" 
+                      : "bg-slate-50 border-slate-200 text-slate-400 hover:text-slate-600 hover:bg-slate-100"
+                  }`}
+                  title={isFavourite ? "Убрать из избранного" : "Добавить в избранное"}
+                >
+                  {favLoading ? (
+                    <div className="w-5 h-5 border-2 border-current border-t-transparent rounded-full animate-spin" />
+                  ) : (
+                    <svg 
+                      xmlns="http://www.w3.org/2000/svg" 
+                      width="20" 
+                      height="20" 
+                      viewBox="0 0 24 24" 
+                      fill={isFavourite ? "currentColor" : "none"} 
+                      stroke="currentColor" 
+                      strokeWidth="2.5" 
+                      strokeLinecap="round" 
+                      strokeLinejoin="round"
+                    >
+                      <path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"></path>
+                    </svg>
+                  )}
+                </button>
+              )}
+            </div>
           </div>
 
           <h1 className="text-3xl md:text-4xl font-extrabold text-slate-900 mb-4 tracking-tight">
             {vacancy.title}
           </h1>
 
-          {/* ССЫЛКА НА СТРАНИЦУ РАБОТОДАТЕЛЯ */}
+          {/* Ссылка на работодателя */}
           <Link 
             href={`/employer/${vacancy.employer_id}`}
             className="inline-flex items-center gap-2 mb-6 text-lg font-bold text-[#05A4BA] hover:text-[#1D869E] hover:underline transition-all group/link"
@@ -206,7 +298,7 @@ export default function VacancyPage() {
                 onClick={() => router.push(`/vacancies/edit/${vacancy.id}`)}
                 className="w-full sm:w-auto px-8 py-4 bg-[#05A4BA] text-white font-bold rounded-2xl hover:bg-[#1D869E] transition-all active:scale-95 shadow-lg shadow-cyan-100 flex items-center justify-center gap-2"
               >
-                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                <svg xmlns="http://www.w3.org/2000/xl" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
                   <path d="M12 20h9"></path>
                   <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"></path>
                 </svg>

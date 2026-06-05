@@ -1,6 +1,6 @@
 'use client';
 
-import { useParams, useSearchParams } from 'next/navigation';
+import { useParams, useSearchParams, useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { motion } from 'framer-motion';
@@ -16,6 +16,7 @@ interface CourseDetail {
 export default function CourseDetailPage() {
   const params = useParams();
   const searchParams = useSearchParams();
+  const router = useRouter();
   const courseId = params.id;
   const backQuery = searchParams.get('fromQuery') || '';
 
@@ -26,34 +27,51 @@ export default function CourseDetailPage() {
   const [isEnrolling, setIsEnrolling] = useState(false);
   const [isEnrolled, setIsEnrolled] = useState(false);
 
+  // Состояния для избранного
+  const [isFavourite, setIsFavourite] = useState(false);
+  const [favLoading, setFavLoading] = useState(false);
+
+  // Выносим базовый URL бэкенда для удобства
+  const API_BASE = "http://127.0.0.1:8000";
+
   useEffect(() => {
     const fetchDetail = async () => {
       try {
         const token = localStorage.getItem("token");
         // Загружаем данные курса
-        const courseRes = await fetch(`http://127.0.0.1:8000/course/?skip=${Number(courseId) - 1}&limit=1`);
+        const courseRes = await fetch(`${API_BASE}/course/?skip=${Number(courseId) - 1}&limit=1`);
         const courseData = await courseRes.json();
         const currentCourse = Array.isArray(courseData) ? courseData[0] : courseData;
         
         setCourse(currentCourse);
 
-        
-
-        // Проверяем, не записан ли уже пользователь на этот курс
         if (token && currentCourse) {
-          const myCoursesRes = await fetch(`http://127.0.0.1:8000/studentcource/my-courses`, {
+          // 1. Проверяем, не записан ли уже пользователь на этот курс
+          const myCoursesRes = await fetch(`${API_BASE}/studentcource/my-courses`, {
             headers: { 'Authorization': `Bearer ${token}` }
           });
           const myCourses = await myCoursesRes.json();
-          // Проверяем наличие course_id в списке моих курсов
           const alreadyEnrolled = Array.isArray(myCourses) 
             ? myCourses.some((c: any) => c.course_id === currentCourse.id)
             : false;
           setIsEnrolled(alreadyEnrolled);
-          
+
+          // 2. Проверяем, находится ли курс в избранном (напрямую к бэкенду)
+          // Если в бэкенде префикс роутера "/courses", замени на /courses/me/...
+          const favsRes = await fetch(`${API_BASE}/courses/me/favourite-courses`, {
+            headers: { 'Authorization': `Bearer ${token}` }
+          });
+
+          if (favsRes.ok) {
+            const favCourses = await favsRes.json();
+            const alreadyFav = Array.isArray(favCourses)
+              ? favCourses.some((fav: any) => fav.id === currentCourse.id)
+              : false;
+            setIsFavourite(alreadyFav);
+          }
         }
       } catch (err) {
-        console.error("Ошибка:", err);
+        console.error("Ошибка при инициализации данных курса:", err);
       } finally {
         setLoading(false);
       }
@@ -62,52 +80,86 @@ export default function CourseDetailPage() {
     if (courseId) fetchDetail();
   }, [courseId]);
 
-const handleEnroll = async () => {
-  if (!course?.id) {
-    console.error("ID курса не найден в стейте");
-    return;
-  }
-
-  setIsEnrolling(true);
-  const token = localStorage.getItem("token");
-
-  try {
-    const response = await fetch(`http://127.0.0.1:8000/studentcource/my-courses`, {
-      method: 'POST',
-      headers: {
-        'Accept': 'application/json', // Добавь это
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${token?.trim()}` // Убираем лишние пробелы в токене
-      },
-      body: JSON.stringify({
-        course_id: Number(course.id),
-        status: "interested"
-      })
-    });
-
-    // Если ошибка 422 — значит бэкенд не принял формат данных
-    if (response.status === 422) {
-      const errorDetail = await response.json();
-      console.table(errorDetail.detail); // Покажет в консоли, какое именно поле не подошло
-      throw new Error("Ошибка валидации данных на сервере (422)");
+  // Хэндлер переключения избранного
+  const toggleFavourite = async () => {
+    const token = localStorage.getItem("token");
+    if (!token) {
+      router.push("/login");
+      return;
     }
 
-    if (!response.ok) {
-      const errorMsg = await response.text();
-      throw new Error(`Ошибка сервера: ${response.status} - ${errorMsg}`);
+    if (!course || favLoading) return;
+
+    try {
+      setFavLoading(true);
+
+      // Идем напрямую к бэкенду. 
+      // Если в FastAPI @router настроен как "/course" (в единственном числе), оставляем так.
+      const res = await fetch(`${API_BASE}/course/${course.id}/favourite`, {
+        method: "POST",
+        headers: {
+          "Authorization": `Bearer ${token}`,
+          "Content-Type": "application/json"
+        }
+      });
+
+      if (res.ok) {
+        setIsFavourite(!isFavourite);
+      } else {
+        console.error("Сервер вернул ошибку при переключении избранного:", res.status);
+      }
+    } catch (error) {
+      console.error("Ошибка при изменении статуса избранного курса:", error);
+    } finally {
+      setFavLoading(false);
+    }
+  };
+
+  const handleEnroll = async () => {
+    if (!course?.id) {
+      console.error("ID курса не найден в стейте");
+      return;
     }
 
-    const result = await response.json();
-    setIsEnrolled(true);
-    console.log("Успешно добавлено:", result);
+    setIsEnrolling(true);
+    const token = localStorage.getItem("token");
 
-  } catch (err: any) {
-    console.error("Детали ошибки POST:", err);
-    alert(err.message);
-  } finally {
-    setIsEnrolling(false);
-  }
-};
+    try {
+      const response = await fetch(`${API_BASE}/studentcource/my-courses`, {
+        method: 'POST',
+        headers: {
+          'Accept': 'application/json',
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token?.trim()}`
+        },
+        body: JSON.stringify({
+          course_id: Number(course.id),
+          status: "interested"
+        })
+      });
+
+      if (response.status === 422) {
+        const errorDetail = await response.json();
+        console.table(errorDetail.detail);
+        throw new Error("Ошибка валидации данных на сервере (422)");
+      }
+
+      if (!response.ok) {
+        const errorMsg = await response.text();
+        throw new Error(`Ошибка сервера: ${response.status} - ${errorMsg}`);
+      }
+
+      const result = await response.json();
+      setIsEnrolled(true);
+      console.log("Успешно добавлено:", result);
+
+    } catch (err: any) {
+      console.error("Детали ошибки POST:", err);
+      alert(err.message);
+    } finally {
+      setIsEnrolling(false);
+    }
+  };
 
   if (loading) return (
     <div className="min-h-screen bg-slate-50 flex items-center justify-center">
@@ -138,10 +190,45 @@ const handleEnroll = async () => {
           animate={{ opacity: 1, y: 0 }}
           className="bg-white rounded-[2rem] shadow-xl border border-slate-100 overflow-hidden"
         >
-          <div className="bg-gradient-to-r from-[#05A4BA] to-[#1D869E] p-8 sm:p-12 text-white">
-            <span className="bg-white/20 backdrop-blur-md text-xs font-bold px-3 py-1 rounded-full uppercase mb-6 inline-block">
-              ID Провайдера: {course.provider_id}
-            </span>
+          {/* Градиентная шапка курса */}
+          <div className="bg-gradient-to-r from-[#05A4BA] to-[#1D869E] p-8 sm:p-12 text-white relative">
+            <div className="flex justify-between items-start gap-4 mb-6">
+              <span className="bg-white/20 backdrop-blur-md text-xs font-bold px-3 py-1 rounded-full uppercase inline-block">
+                ID Провайдера: {course.provider_id}
+              </span>
+
+              {/* КНОПКА ФАВОРИТОВ (ЗАКЛАДКА) */}
+              <button
+                type="button"
+                onClick={toggleFavourite}
+                disabled={favLoading}
+                className={`p-2.5 rounded-xl border backdrop-blur-md transition-all duration-200 flex items-center justify-center ${
+                  isFavourite 
+                    ? "bg-red-500/20 border-red-400 text-red-200 hover:bg-red-500/30" 
+                    : "bg-white/10 border-white/20 text-white/70 hover:text-white hover:bg-white/20"
+                }`}
+                title={isFavourite ? "Убрать из избранного" : "Добавить в избранное"}
+              >
+                {favLoading ? (
+                  <div className="w-5 h-5 border-2 border-current border-t-transparent rounded-full animate-spin" />
+                ) : (
+                  <svg 
+                    xmlns="http://www.w3.org/2000/svg" 
+                    width="20" 
+                    height="20" 
+                    viewBox="0 0 24 24" 
+                    fill={isFavourite ? "currentColor" : "none"} 
+                    stroke="currentColor" 
+                    strokeWidth="2.5" 
+                    strokeLinecap="round" 
+                    strokeLinejoin="round"
+                  >
+                    <path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"></path>
+                  </svg>
+                )}
+              </button>
+            </div>
+            
             <h1 className="text-3xl sm:text-5xl font-black leading-tight">{course.title}</h1>
           </div>
 
