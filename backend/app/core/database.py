@@ -7,7 +7,7 @@ from typing import Generator
 # Если нет — берем локальный порт 5433 для Windows.
 DATABASE_URL = os.getenv(
     "DATABASE_URL", 
-    "postgresql+psycopg://postgres:qwerty@localhost:5432/postgres"
+    "postgresql+psycopg://postgres:qwerty@localhost:5436/postgres"
 )
 
 engine = create_engine(DATABASE_URL)
