@@ -10,6 +10,8 @@ from typing import List
 from sqlmodel import select, Session
 from app.schemas.favourite import FavouriteToggleResponse
 from app.crud.favourite_vacancy import toggle_favourite_vacancy, remove_favourite_vacancy
+from sqlmodel import desc
+from app.models.student import StudentProfile
 
 # Инициализируем роутер для обработки всех запросов, связанных с вакансиями (Vacancies)
 router = APIRouter()
@@ -52,6 +54,134 @@ def read_my_vacancies(
     
     # 3. Возвращаем массив вакансий конкретной компании через CRUD-функцию
     return get_employer_vacancies(session, employer_profile.id)
+
+
+@router.get("/latest", response_model=List[VacancyRead])
+def read_latest_vacancies(session: Session = Depends(get_session)):
+    """
+    ЭНДПОИНТ: Получение 10 последних добавленных вакансий.
+    Идеально подходит для фронтенд-компонента "Свежие вакансии".
+    """
+    # Сортируем по убыванию id (или по полю created_at, если оно есть в модели Vacancy)
+    statement = select(Vacancy).order_by(desc(Vacancy.id)).limit(10)
+    latest_vacancies = session.exec(statement).all()
+    return latest_vacancies
+
+
+@router.get("/recommendations", response_model=List[VacancyRead])
+def read_recommended_vacancies(
+    session: Session = Depends(get_session),
+    current_user_id: int = Depends(get_current_user_id)
+):
+    """
+    ЭНДПОИНТ: Получение 10 рекомендованных вакансий на основе ИИ-векторов.
+    Доступен только авторизованным студентам/соискателям.
+    """
+    # 1. Получаем профиль студента, чтобы взять его вектор интересов
+    student_profile = session.exec(
+        select(StudentProfile).where(StudentProfile.user_id == current_user_id)
+    ).first()
+    
+    if not student_profile:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Профиль соискателя не найден. Рекомендации недоступны."
+        )
+        
+    # Генерируем эмбеддинг, если его по какой-то причине нет в БД, но есть текстовые интересы
+    if student_profile.interests_embedding is None:
+        if student_profile.interests:
+            interests_text = ", ".join(student_profile.interests)
+            student_profile.interests_embedding = ai_service.embed_text(interests_text)
+            session.add(student_profile)
+            session.commit()
+        else:
+            # Если интересов совсем нет — отдаем базовый топ вакансий
+            return session.exec(select(Vacancy).limit(10)).all()
+
+    # 2. Получаем все вакансии, у которых сгенерирован эмбеддинг
+    all_vacancies = session.exec(select(Vacancy).where(Vacancy.embedding != None)).all()
+    
+    if not all_vacancies:
+        return []
+
+    # 3. Считаем косинусное сходство между вектором интересов пользователя и вектором вакансии
+    scored_vacancies = []
+    for vacancy in all_vacancies:
+        score = ai_service.get_similarity(student_profile.interests_embedding, vacancy.embedding)
+        scored_vacancies.append((score, vacancy))
+        
+    # 4. Сортируем по коэффициенту сходства (от большего к меньшему) и берем топ-10
+    scored_vacancies.sort(key=lambda x: x[0], reverse=True)
+    recommended_vacancies = [vacancy for score, vacancy in scored_vacancies[:10]]
+    
+    return recommended_vacancies
+
+
+@router.get("/personalized-trending", response_model=List[VacancyRead])
+def read_personalized_trending_vacancies(
+    session: Session = Depends(get_session),
+    current_user_id: int = Depends(get_current_user_id)
+):
+    """
+    ЭНДПОИНТ: ТОП-5 вакансий, которые одновременно являются СВЕЖИМИ и ПОДХОДЯТ по интересам.
+    Реализует гибридное ранжирование (Косинусное сходство + Коэффициент новизны).
+    """
+    # 1. Получаем профиль студента
+    student_profile = session.exec(
+        select(StudentProfile).where(StudentProfile.user_id == current_user_id)
+    ).first()
+    
+    if not student_profile:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Профиль соискателя не найден."
+        )
+        
+    # Генерируем эмбеддинг интересов, если его нет
+    if student_profile.interests_embedding is None:
+        if student_profile.interests:
+            interests_text = ", ".join(student_profile.interests)
+            student_profile.interests_embedding = ai_service.embed_text(interests_text)
+            session.add(student_profile)
+            session.commit()
+        else:
+            # Если интересов нет, отдаем просто 5 последних созданных вакансий
+            return session.exec(select(Vacancy).order_by(desc(Vacancy.id)).limit(5)).all()
+
+    # 2. Получаем вакансии с валидными эмбеддингами
+    all_vacancies = session.exec(select(Vacancy).where(Vacancy.embedding != None)).all()
+    if not all_vacancies:
+        return []
+
+    # 3. Находим Мин и Макс ID вакансий для нормализации новизны (Min-Max Normalization)
+    all_ids = [v.id for v in all_vacancies]
+    min_id = min(all_ids)
+    max_id = max(all_ids)
+    id_range = max_id - min_id if max_id != min_id else 1
+
+    # 4. Веса для кастомизации гибридного поиска (в сумме дают 1.0)
+    WEIGHT_SIMILARITY = 0.6  # Насколько важна релевантность по ИИ (60%)
+    WEIGHT_RECENCY = 0.4     # Насколько важна новизна вакансии (40%)
+
+    scored_vacancies = []
+    for vacancy in all_vacancies:
+        # Считаем семантическое сходство (0.0 - 1.0)
+        similarity = ai_service.get_similarity(student_profile.interests_embedding, vacancy.embedding)
+        
+        # Нормализуем новизну: чем ближе ID к максимальному, тем ближе значение к 1.0
+        recency = (vacancy.id - min_id) / id_range
+        
+        # Вычисляем финальный гибридный скор
+        final_score = (similarity * WEIGHT_SIMILARITY) + (recency * WEIGHT_RECENCY)
+        
+        scored_vacancies.append((final_score, vacancy))
+
+    # 5. Сортируем по финальному скору сверху вниз и забираем ровно 5 элементов для промо-блоков/баннеров
+    scored_vacancies.sort(key=lambda x: x[0], reverse=True)
+    trending_vacancies = [vacancy for score, vacancy in scored_vacancies[:5]]
+
+    return trending_vacancies
 
 
 @router.patch("/{vacancy_id}", response_model=VacancyRead)

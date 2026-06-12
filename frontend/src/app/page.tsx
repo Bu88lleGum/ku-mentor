@@ -25,27 +25,32 @@ export default function Home() {
   const [isAuth, setIsAuth] = useState(false);
   const [query, setQuery] = useState('');
   const [loading, setLoading] = useState(false);
-  const [latestLoading, setLatestLoading] = useState(false); // Отдельный лоадер для новинок
+  const [latestLoading, setLatestLoading] = useState(false); 
 
   const [currentMode, setCurrentMode] = useState<"course" | "vacancy">("course");
 
   const [recommendations, setRecommendations] = useState<UnifiedEntity[]>([]);
-  const [latestCourses, setLatestCourses] = useState<UnifiedEntity[]>([]); // Стейт для последних курсов
+  const [latestEntities, setLatestEntities] = useState<UnifiedEntity[]>([]); // Стейт универсален для новинок курсов/вакансий
   const [searchResults, setSearchResults] = useState<SearchResult[]>([]); 
   const [isSearching, setIsSearching] = useState(false);
 
   const [topMatches, setTopMatches] = useState<UnifiedEntity[]>([]);
   const [topMatchesLoading, setTopMatchesLoading] = useState(false);
 
-  // 2. Добавляем функцию загрузки ТОП-5 мэтчей
-  const loadTopMatches = useCallback(async () => {
+  // Карта соответствия для бэкенда (course или vacancy)
+  const getBackendPrefix = useCallback((mode: "course" | "vacancy") => {
+    return mode === "course" ? "course" : "vacancy";
+  }, []);
+
+  // 1. ЗАГРУЗКА ТОП-5 УМНЫХ НОВИНОК (ГИБРИДНЫЙ ПОИСК)
+  const loadTopMatches = useCallback(async (mode: "course" | "vacancy") => {
     const token = localStorage.getItem("token");
-    if (!token) return; // Так как это подборка по интересам, нужен токен
+    if (!token) return; 
 
     setTopMatchesLoading(true);
     try {
-      // Представим, что бэкенд отдает именно пересечение новинок и интересов
-      const response = await fetch(`http://127.0.0.1:8000/course/personalized-trending`, {
+      const backendPath = getBackendPrefix(mode);
+      const response = await fetch(`http://127.0.0.1:8000/${backendPath}/personalized-trending`, {
         method: 'GET',
         headers: {
           'Content-Type': 'application/json',
@@ -56,24 +61,22 @@ export default function Home() {
       const data = await response.json();
       setTopMatches(Array.isArray(data) ? data.slice(0, 5) : (data.results?.slice(0, 5) || []));
     } catch (error) {
-      console.error("Ошибка при загрузке топ-мэтчей:", error);
+      console.error(`Ошибка при загрузке топ-мэтчей для ${mode}:`, error);
       setTopMatches([]);
     } finally {
       setTopMatchesLoading(false);
     }
-  }, []);
+  }, [getBackendPrefix]);
 
-
-
-  // 1. ЗАГРУЗКА ПЕРСОНАЛЬНЫХ РЕКОМЕНДАЦИЙ
+  // 2. ЗАГРУЗКА ПЕРСОНАЛЬНЫХ РЕКОМЕНДАЦИЙ (ИИ)
   const loadDefaultRecommendations = useCallback(async (mode: "course" | "vacancy") => {
     const token = localStorage.getItem("token");
     if (!token) return;
 
     setLoading(true);
     try {
-      const endpoint = mode === "course" ? "/course/recommendations" : "/vacancies/recommendations";
-      const response = await fetch(`http://127.0.0.1:8000${endpoint}`, {
+      const backendPath = getBackendPrefix(mode);
+      const response = await fetch(`http://127.0.0.1:8000/${backendPath}/recommendations`, {
         method: 'GET',
         headers: {
           'Content-Type': 'application/json',
@@ -89,18 +92,19 @@ export default function Home() {
       const data = await response.json();
       setRecommendations(Array.isArray(data) ? data : data.results || []);
     } catch (error) {
-      console.error("Ошибка при загрузке рекомендаций:", error);
+      console.error(`Ошибка при загрузке рекомендаций для ${mode}:`, error);
       setRecommendations([]);
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [getBackendPrefix]);
 
-  // ДОБАВЛЕНО: ЗАГРУЗКА ПОСЛЕДНИХ КУРСОВ (НОВИНОК)
-  const loadLatestCourses = useCallback(async () => {
+  // 3. ЗАГРУЗКА ОБЩИХ НОВИНОК ПЛАТФОРМЫ
+  const loadLatestEntities = useCallback(async (mode: "course" | "vacancy") => {
     setLatestLoading(true);
     try {
-      const response = await fetch(`http://127.0.0.1:8000/course/latest`, {
+      const backendPath = getBackendPrefix(mode);
+      const response = await fetch(`http://127.0.0.1:8000/${backendPath}/latest`, {
         method: 'GET',
         headers: {
           'Content-Type': 'application/json',
@@ -108,39 +112,36 @@ export default function Home() {
       });
 
       const data = await response.json();
-      setLatestCourses(Array.isArray(data) ? data : data.results || []);
+      setLatestEntities(Array.isArray(data) ? data : data.results || []);
     } catch (error) {
-      console.error("Ошибка при загрузке последних курсов:", error);
-      setLatestCourses([]);
+      console.error(`Ошибка при загрузке новинок для ${mode}:`, error);
+      setLatestEntities([]);
     } finally {
       setLatestLoading(false);
     }
-  }, []);
+  }, [getBackendPrefix]);
 
-  // Синхронизация вкладок
+  // Синхронизация вкладок и загрузка данных при переключении
   useEffect(() => {
     setQuery('');
     setWarning('');
     setSearchResults([]);
     setIsSearching(false);
     
+    // КРИТИЧЕСКИ ВАЖНО: Очищаем старые списки перед загрузкой новых, 
+    // чтобы не было состояния, когда режим поменялся, а данные внутри стейта еще старые.
+    setTopMatches([]); 
+    setRecommendations([]);
+
     if (isAuth) {
       loadDefaultRecommendations(currentMode);
-      // Запускаем только на вкладке курсов при авторизации
-      if (currentMode === "course") {
-        loadTopMatches();
-      }
-    } else {
-      setRecommendations([]);
-      setTopMatches([]);
+      loadTopMatches(currentMode);
     }
 
-    if (currentMode === "course") {
-      loadLatestCourses();
-    }
-  }, [currentMode, isAuth, loadDefaultRecommendations, loadLatestCourses, loadTopMatches]);
+    loadLatestEntities(currentMode);
+  }, [currentMode, isAuth, loadDefaultRecommendations, loadLatestEntities, loadTopMatches]);
 
-  // 2. ВЫПОЛНЕНИЕ ПОИСКА
+  // 4. СЕМАНТИЧЕСКИЙ ПОИСК ПО ТЕКСТУ
   const executeSearch = useCallback(async (searchQuery: string, mode: "course" | "vacancy") => {
     if (searchQuery.trim().length < 3) {
       setWarning('Запрос должен содержать минимум 3 буквы');
@@ -153,6 +154,7 @@ export default function Home() {
 
     try {
       const token = localStorage.getItem("token");
+      // Сохраняем твои исходные роуты поискового движка
       const endpoint = mode === "course" ? "/recommend/" : "/recommend/vacancy";
       
       const response = await fetch(`http://127.0.0.1:8000${endpoint}?user_query=${encodeURIComponent(searchQuery)}`, {
@@ -193,11 +195,11 @@ export default function Home() {
     if (query.trim().length === 0) {
       setIsSearching(false);
       setSearchResults([]);
-      await loadDefaultRecommendations(currentMode);
-      if (currentMode === "course") {
-        await loadLatestCourses();
-        await loadTopMatches(); // <-- Перезапрашиваем при очистке поиска
+      if (isAuth) {
+        await loadDefaultRecommendations(currentMode);
+        await loadTopMatches(currentMode);
       }
+      await loadLatestEntities(currentMode);
       return;
     }
 
@@ -209,38 +211,46 @@ export default function Home() {
     await executeSearch(query, currentMode);
   };
 
+  // 5. ИЗБРАННОЕ (Бэкенд: course или vacancy)
   const handleToggleFavourite = async (id: number, isCurrentlyFavourited: boolean): Promise<boolean> => {
-  try {
-    const token = localStorage.getItem("token");
-    if (!token) return false;
+    try {
+      const token = localStorage.getItem("token");
+      if (!token) return false;
 
-    // Выбираем правильный префикс в зависимости от режима (курсы или вакансии)
-    // Убедитесь, что эти пути совпадают с роутерами FastAPI (например, /courses или /vacancies)
-    const entityPath = currentMode === "course" ? "course" : "vacancy";
-    
-    // ОПРЕДЕЛЯЕМ МЕТОД: если уже в избранном — отправляем DELETE для удаления, иначе POST для добавления
-    const HTTPMethod = isCurrentlyFavourited ? 'DELETE' : 'POST';
+      const backendPath = getBackendPrefix(currentMode);
+      const HTTPMethod = isCurrentlyFavourited ? 'DELETE' : 'POST';
 
-    const response = await fetch(`http://127.0.0.1:8000/${entityPath}/${id}/favourite`, {
-      method: HTTPMethod,
-      headers: { 
-        'Authorization': `Bearer ${token}`, 
-        'Content-Type': 'application/json' 
+      const response = await fetch(`http://127.0.0.1:8000/${backendPath}/${id}/favourite`, {
+        method: HTTPMethod,
+        headers: { 
+          'Authorization': `Bearer ${token}`, 
+          'Content-Type': 'application/json' 
+        }
+      });
+
+      if (!response.ok) {
+        console.error(`Бэкенд вернул ошибку ${response.status} при попытке ${HTTPMethod}`);
+        return false;
       }
-    });
 
-    if (!response.ok) {
-      console.error(`Бэкенд вернул ошибку ${response.status} при попытке ${HTTPMethod}`);
+      // СИНХРОНИЗАЦИЯ СОСТОЯНИЯ: Инвертируем флаг is_favourited для измененного элемента во всех списках
+      const updateList = (list: UnifiedEntity[]) =>
+        list.map((item) =>
+          item.id === id ? { ...item, is_favourited: !isCurrentlyFavourited } : item
+        );
+
+      setTopMatches(prev => updateList(prev));
+      setRecommendations(prev => updateList(prev));
+      setLatestEntities(prev => updateList(prev));
+
+      return true;
+    } catch (error) {
+      console.error("Ошибка сети при переключении избранного:", error);
       return false;
     }
+  };
 
-    return true;
-  } catch (error) {
-    console.error("Ошибка сети при переключении избранного:", error);
-    return false;
-  }
-};
-
+  // Первичная проверка токена
   useEffect(() => {
     const token = localStorage.getItem("token");
     const checkAuth = async () => {
@@ -267,7 +277,7 @@ export default function Home() {
       setQuery(queryFromUrl);
       executeSearch(queryFromUrl, currentMode);
     }
-  }, [searchParams, isAuth, executeSearch]);
+  }, [searchParams, isAuth, executeSearch, currentMode]);
   
   const CardSkeleton = () => (
     <div className="bg-white p-6 rounded-2xl border border-slate-100 animate-pulse shadow-sm h-[200px] flex flex-col justify-between">
@@ -289,7 +299,7 @@ export default function Home() {
     <div className="min-h-screen bg-slate-50 text-slate-900 font-sans">
       <HeaderPage isAuth={isAuth} />
       
-      <header className="relative pt-16 pb-28 bg-gradient-to-br from-[#A9F4FF] via-[#05A4BA] to-[#1D869E]">
+      <header className="relative pt-16 pb-28 bg-gradient-to-br from-[#A9F4FF] via-[#05A4BA] to-[#1D869E] p-16">
         <div className="text-center">
           <h1 className="text-6xl font-extrabold text-white my-14 tracking-tight">KU Mentor</h1>
           <p className="text-xl text-[#A9F4FF] max-w-3xl mx-auto px-4 font-medium opacity-90">
@@ -304,7 +314,7 @@ export default function Home() {
       <main className="max-w-6xl mx-auto px-6 -mt-14 relative z-10">
         
         {/* ПЕРЕКЛЮЧАТЕЛЬ РЕЖИМОВ */}
-        <div className="flex justify-start mb-3 ml-1">
+        <div className="flex justify-center mb-3 ml-1 m-16">
           <div className="bg-slate-900/10 backdrop-blur-sm p-1 rounded-xl flex gap-1">
             <button
               onClick={() => setCurrentMode("course")}
@@ -409,54 +419,56 @@ export default function Home() {
           <AnimatePresence mode="wait">
             
             {/* СЦЕНАРИЙ А: ДЕФОЛТНЫЙ ВЫВОД (НЕ ПОИСК) */}
-{!isSearching && !loading && (
-  <motion.div
-    key={`default-lists-${currentMode}`}
-    initial={{ opacity: 0, y: 10 }}
-    animate={{ opacity: 1, y: 0 }}
-    exit={{ opacity: 0, y: -10 }}
-    transition={{ duration: 0.25 }}
-    className="space-y-14" // Слегка увеличили отступ между секциями
-  >
+            {!isSearching && !loading && (
+              <motion.div
+                key={`default-lists-${currentMode}`}
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -10 }}
+                transition={{ duration: 0.25 }}
+                className="space-y-14"
+              >
 
-    {/* ЛЕНТА 1: ТОП-5 Умных Новинок по интересам (Карусель со стрелками) */}
-    {currentMode === "course" && isAuth && topMatches.length > 0 && (
-      <TopMatchRecommendationList 
-        items={topMatches}
-        onToggleFavourite={handleToggleFavourite}
-      />
-    )}
+                {/* ЛЕНТА 1: ТОП-5 Умных Новинок по интересам */}
+                {isAuth && topMatches.length > 0 && (
+                  <TopMatchRecommendationList 
+                    items={topMatches}
+                    type={currentMode} // <-- ДОБАВЛЕНО ТУТ: теперь компонент точно знает, что он рендерит
+                    onToggleFavourite={handleToggleFavourite}
+                  />
+                )}
 
-    {/* ЛЕНТА 2: Персональные рекомендации */}
-    {isAuth && recommendations.length > 0 && (
-      <div>
-        <h2 className="text-lg font-bold text-slate-700 mb-4 px-1 flex items-center gap-2">
-          <span>🎯</span> Специально для вас ({currentMode === "course" ? "курсы" : "вакансии"})
-        </h2>
-        <EntityRecommendationList 
-          items={recommendations} 
-          type={currentMode === "course" ? "course" : "vacancy"} 
-          onToggleFavourite={handleToggleFavourite}
-        />
-      </div>
-    )}
+                {/* ЛЕНТА 2: Персональные рекомендации */}
+                {isAuth && recommendations.length > 0 && (
+                  <div>
+                    <h2 className="text-lg font-bold text-slate-700 mb-4 px-1 flex items-center gap-2">
+                      <span>🎯</span> Специально для вас ({currentMode === "course" ? "курсы" : "вакансии"})
+                    </h2>
+                    <EntityRecommendationList 
+                      items={recommendations} 
+                      type={currentMode} 
+                      onToggleFavourite={handleToggleFavourite}
+                    />
+                  </div>
+                )}
 
-    {/* ЛЕНТА 3: Новинки платформы (Общие) */}
-    {currentMode === "course" && latestCourses.length > 0 && (
-      <div>
-        <h2 className="text-lg font-bold text-slate-700 mb-4 px-1 flex items-center gap-2">
-          <Sparkles className="w-4 h-4 text-amber-500 fill-amber-500" />
-          Новинки платформы
-        </h2>
-        <EntityRecommendationList 
-          items={latestCourses} 
-          type="course" 
-          onToggleFavourite={handleToggleFavourite}
-        />
-      </div>
-    )}
-  </motion.div>
-)}
+                {/* ЛЕНТА 3: Новинки платформы (Общие) */}
+                {latestEntities.length > 0 && (
+                  <div>
+                    <h2 className="text-lg font-bold text-slate-700 mb-4 px-1 flex items-center gap-2">
+                      <Sparkles className="w-4 h-4 text-amber-500 fill-amber-500" />
+                      Новинки платформы
+                    </h2>
+                    <EntityRecommendationList 
+                      items={latestEntities} 
+                      type={currentMode} 
+                      onToggleFavourite={handleToggleFavourite}
+                    />
+                  </div>
+                )}
+              </motion.div>
+            )}
+
             {/* СЦЕНАРИЙ Б: ВЫДАЧА РЕЗУЛЬТАТОВ ПОИСКА */}
             {isSearching && !loading && (
               <motion.div
@@ -503,6 +515,7 @@ export default function Home() {
                         </div>
 
                         <div className="flex justify-end mt-4">
+                          {/* Фронтенд-маппинг путей: course/... или vacancies/... */}
                           <Link 
                             href={currentMode === "course" ? `/course/${item.id}` : `/vacancies/${item.id}`}
                             className="flex items-center gap-1.5 px-4 py-2 bg-[#05A4BA] text-white text-xs font-bold rounded-xl hover:bg-[#1D869E] active:scale-95 transition-all"
