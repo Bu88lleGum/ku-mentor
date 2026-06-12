@@ -314,29 +314,29 @@ export default function Home() {
       <main className="max-w-6xl mx-auto px-6 -mt-14 relative z-10">
         
         {/* ПЕРЕКЛЮЧАТЕЛЬ РЕЖИМОВ */}
-        <div className="flex justify-center mb-3 ml-1 m-16">
-          <div className="bg-slate-900/10 backdrop-blur-sm p-1 rounded-xl flex gap-1">
+        <div className="flex justify-center mb-3 mx-auto my-16 w-full max-w-md px-4">
+          <div className="bg-slate-900/10 backdrop-blur-sm p-1 rounded-xl flex gap-1 w-full">
             <button
               onClick={() => setCurrentMode("course")}
-              className={`flex items-center gap-2 px-5 py-2 text-xs font-bold rounded-lg transition-all ${
+              className={`flex items-center justify-center gap-2 flex-1 px-5 py-2.5 text-xs font-bold rounded-lg transition-all duration-200 ${
                 currentMode === "course"
                   ? "bg-white text-[#1D869E] shadow-sm"
-                  : "text-white/80 hover:text-white hover:bg-white/10"
+                  : "text-slate-600 hover:text-slate-900 hover:bg-slate-900/5 active:scale-95"
               }`}
             >
               <BookOpen className="w-3.5 h-3.5" />
-              Курсы
+              <span>Курсы</span>
             </button>
             <button
               onClick={() => setCurrentMode("vacancy")}
-              className={`flex items-center gap-2 px-5 py-2 text-xs font-bold rounded-lg transition-all ${
+              className={`flex items-center justify-center gap-2 flex-1 px-5 py-2.5 text-xs font-bold rounded-lg transition-all duration-200 ${
                 currentMode === "vacancy"
                   ? "bg-white text-[#1D869E] shadow-sm"
-                  : "text-white/80 hover:text-white hover:bg-white/10"
+                  : "text-slate-600 hover:text-slate-900 hover:bg-slate-900/5 active:scale-95"
               }`}
             >
               <Briefcase className="w-3.5 h-3.5" />
-              Вакансии
+              <span>Вакансии</span>
             </button>
           </div>
         </div>

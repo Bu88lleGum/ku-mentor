@@ -34,7 +34,6 @@ export default function ApplicationDetailPage() {
   const [submitting, setSubmitting] = useState<boolean>(false);
   const [message, setMessage] = useState<string>("");
   
-  // Роль теперь храним строго в UPPERCASE ('EMPLOYER' | 'STUDENT'), как на странице профиля
   const [userRole, setUserRole] = useState<"EMPLOYER" | "STUDENT" | null>(null);
 
   useEffect(() => {
@@ -70,7 +69,7 @@ export default function ApplicationDetailPage() {
       } catch (error) {
         console.error("Ошибка при инициализации страницы:", error);
       } finally {
-        setLoading(false);
+        loading && setLoading(false);
       }
     };
 
@@ -79,7 +78,8 @@ export default function ApplicationDetailPage() {
     }
   }, [applicationId]);
 
-  const handleUpdateStatus = async (newStatus: "ACCEPTED" | "REJECTED") => {
+  // ИСПРАВЛЕНО: принимаем и отправляем статус в нижнем регистре ('accepted' | 'rejected')
+  const handleUpdateStatus = async (targetStatus: "accepted" | "rejected") => {
     if (userRole !== "EMPLOYER") {
       setMessage("Ошибка: только работодатель может менять статус заявки.");
       return;
@@ -96,14 +96,15 @@ export default function ApplicationDetailPage() {
           "Content-Type": "application/json",
           "Authorization": `Bearer ${token}`
         },
-        body: JSON.stringify({ status: newStatus })
+        body: JSON.stringify({ status: targetStatus }) // Отправка в нижнем регистре
       });
 
       if (response.ok) {
-        setApplication(prev => prev ? { ...prev, status: newStatus } : null);
-        setMessage(newStatus === "ACCEPTED" ? "Кандидат успешно принят!" : "Отклонено.");
+        // Обновляем локальный стейт тем значением, которое засинкали с бэком
+        setApplication(prev => prev ? { ...prev, status: targetStatus } : null);
+        setMessage(targetStatus === "accepted" ? "Кандидат успешно принят!" : "Отклонено.");
       } else {
-        setMessage("Ошибка при обновлении статуса на сервере.");
+        setMessage("Ошибка при обновлении статуса на сервере (422 или 500).");
       }
     } catch (error) {
       console.error("Ошибка обновления статуса:", error);
@@ -113,23 +114,24 @@ export default function ApplicationDetailPage() {
     }
   };
 
+  // Безопасное приведение к регистру для стилей бейджей
   const getStatusBadgeClass = (status: string) => {
-    const s = status?.toUpperCase();
-    if (s?.includes("ACCEPT")) return "bg-emerald-50 text-emerald-700 border-emerald-200";
-    if (s?.includes("REJECT")) return "bg-rose-50 text-rose-700 border-rose-200";
+    const s = status?.toLowerCase() || "";
+    if (s === "accepted" || s.includes("accept")) return "bg-emerald-50 text-emerald-700 border-emerald-200";
+    if (s === "rejected" || s.includes("reject")) return "bg-rose-50 text-rose-700 border-rose-200";
     return "bg-amber-50 text-amber-700 border-amber-200";
   };
 
   const getStatusLabel = (status: string) => {
-    const s = status?.toUpperCase();
-    if (s?.includes("ACCEPT")) return "Принят";
-    if (s?.includes("REJECT")) return "Отказ";
+    const s = status?.toLowerCase() || "";
+    if (s === "accepted" || s.includes("accept")) return "Принят";
+    if (s === "rejected" || s.includes("reject")) return "Отказ";
     return "На рассмотрении";
   };
 
   const isPendingStatus = (status: string) => {
-    const s = status?.toUpperCase() || "";
-    return s === "PENDING" || s.includes("PEND") || (!s.includes("ACCEPT") && !s.includes("REJECT"));
+    const s = status?.toLowerCase() || "";
+    return s === "pending" || (!s.includes("accept") && !s.includes("reject"));
   };
 
   if (loading) return (
@@ -238,14 +240,14 @@ export default function ApplicationDetailPage() {
 
             <div className="flex items-center gap-3 w-full sm:w-auto">
               <button
-                onClick={() => handleUpdateStatus("REJECTED")}
+                onClick={() => handleUpdateStatus("rejected")} // Изменено на нижний регистр
                 disabled={submitting}
                 className="flex-1 sm:flex-none px-6 py-3 border border-rose-200 text-rose-600 font-bold rounded-2xl text-sm bg-rose-50/50 hover:bg-rose-50 transition-all active:scale-95 disabled:opacity-50"
               >
                 Отклонить
               </button>
               <button
-                onClick={() => handleUpdateStatus("ACCEPTED")}
+                onClick={() => handleUpdateStatus("accepted")} // Изменено на нижний регистр
                 disabled={submitting}
                 className="flex-1 sm:flex-none px-6 py-3 bg-[#05A4BA] text-white font-bold rounded-2xl text-sm hover:bg-[#1D869E] transition-all shadow-lg shadow-cyan-100 active:scale-95 disabled:opacity-50"
               >
@@ -255,7 +257,7 @@ export default function ApplicationDetailPage() {
           </div>
         )}
 
-        {/* 🎓 ПАНЕЛЬ ДЕЙСТВИЙ СТУДЕНТА: Статус + Кнопка перехода в свой профиль */}
+        {/* 🎓 ПАНЕЛЬ ДЕЙСТВИЙ СТУДЕНТА */}
         {userRole === "STUDENT" && (
           <div className="bg-white border border-slate-100 rounded-3xl p-6 shadow-sm flex flex-col sm:flex-row gap-4 items-center justify-between">
             <div className="text-center sm:text-left">
@@ -273,7 +275,7 @@ export default function ApplicationDetailPage() {
             </div>
 
             <button
-              onClick={() => router.push("/profile")} // Путь к странице профиля
+              onClick={() => router.push("/profile")}
               className="w-full sm:w-auto text-center px-6 py-3 bg-slate-100 text-slate-700 hover:bg-slate-200 font-bold rounded-2xl text-sm transition-all active:scale-95 layout-button"
             >
               Перейти в профиль
@@ -283,7 +285,7 @@ export default function ApplicationDetailPage() {
 
         {message && (
           <div className={`p-4 rounded-2xl border text-center text-sm font-bold ${
-            message.includes("успешно") || message.includes("Принят")
+            message.includes("успешно") || message.includes("принят") || message.includes("Принят")
               ? "bg-emerald-50 text-emerald-700 border-emerald-200" 
               : "bg-slate-100 text-slate-600 border-slate-200"
           }`}>
